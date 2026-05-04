@@ -1,1 +1,980 @@
+<!DOCTYPE html>
 
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Tonic Carpet AR</title>
+
+<!-- AR.js + A-Frame -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/aframe/1.4.2/aframe.min.js"></script>
+
+<script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600&display=swap');
+
+:root {
+  --cyan:   #00E5FF;
+  --green:  #00E676;
+  --amber:  #FFD740;
+  --pink:   #FF4081;
+  --purple: #a78bfa;
+  --blue:   #1565C0;
+  --dark:   rgba(6,16,30,0.92);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+body {
+  font-family:'Outfit', sans-serif;
+  background:#000;
+  overflow:hidden;
+  width:100vw; height:100vh;
+}
+
+/* A-Frame canvas plein écran */
+a-scene { width:100vw !important; height:100vh !important; }
+
+/* ── SPLASH SCREEN ── */
+#splash {
+  position:fixed; inset:0; z-index:1000;
+  background:linear-gradient(160deg,#071525,#040c18);
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  gap:1.5rem; padding:2rem;
+  transition:opacity 0.6s ease;
+}
+#splash.hide { opacity:0; pointer-events:none; }
+
+.splash-logo {
+  font-family:'Bebas Neue'; font-size:3rem; letter-spacing:0.1em;
+  color:var(--cyan); line-height:1;
+}
+.splash-logo span { color:rgba(255,255,255,0.8); }
+.splash-sub {
+  font-size:0.85rem; color:rgba(255,255,255,0.45);
+  text-align:center; line-height:1.6; max-width:280px;
+}
+
+/* Marqueur à imprimer */
+.marker-print-box {
+  background:white; border-radius:16px;
+  padding:1.2rem; text-align:center;
+  box-shadow:0 0 40px rgba(0,229,255,0.2);
+}
+.marker-print-box p {
+  font-size:0.7rem; color:#333; margin-top:0.5rem;
+  letter-spacing:0.05em;
+}
+
+/* Le marqueur Hiro SVG intégré */
+.hiro-svg {
+  width:140px; height:140px;
+  border:4px solid black;
+  display:block; margin:0 auto;
+}
+
+.splash-steps {
+  display:flex; flex-direction:column; gap:0.6rem; width:100%; max-width:300px;
+}
+.splash-step {
+  display:flex; gap:0.8rem; align-items:center;
+  padding:0.7rem 1rem;
+  background:rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:10px;
+}
+.ss-num {
+  font-family:'Bebas Neue'; font-size:1.3rem; color:var(--cyan);
+  line-height:1; min-width:1.5rem;
+}
+.ss-text { font-size:0.78rem; color:rgba(255,255,255,0.65); line-height:1.4; }
+
+.start-btn {
+  width:100%; max-width:300px;
+  padding:1rem; border-radius:12px;
+  background:var(--blue); color:white; border:none;
+  font-family:'Outfit'; font-size:1rem; font-weight:600;
+  letter-spacing:0.06em; cursor:pointer;
+  box-shadow:0 0 30px rgba(21,101,192,0.4);
+  transition:all .25s;
+}
+.start-btn:active { transform:scale(0.97); }
+
+/* ── HUD OVERLAY (par-dessus la caméra) ── */
+#hud {
+  position:fixed; inset:0; z-index:100;
+  pointer-events:none;
+  display:none;
+}
+#hud.visible { display:block; }
+
+/* Coins AR */
+.hud-corner {
+  position:absolute; width:36px; height:36px;
+  border-color:var(--cyan); border-style:solid; opacity:0.7;
+}
+.hud-corner.tl { top:16px; left:16px; border-width:2px 0 0 2px; }
+.hud-corner.tr { top:16px; right:16px; border-width:2px 2px 0 0; }
+.hud-corner.bl { bottom:90px; left:16px; border-width:0 0 2px 2px; }
+.hud-corner.br { bottom:90px; right:16px; border-width:0 2px 2px 0; }
+
+/* Top status bar */
+#status-bar {
+  position:absolute; top:0; left:0; right:0;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0.7rem 1rem;
+  background:linear-gradient(180deg,rgba(0,0,0,0.7) 0%,transparent 100%);
+  pointer-events:none;
+}
+.sb-logo { font-family:'Bebas Neue'; font-size:1.1rem; letter-spacing:0.1em; color:var(--cyan); }
+.sb-logo span { color:rgba(255,255,255,0.8); }
+.sb-status {
+  display:flex; align-items:center; gap:0.4rem;
+  font-size:0.65rem; letter-spacing:0.1em; text-transform:uppercase;
+}
+.sb-dot {
+  width:6px; height:6px; border-radius:50%;
+  background:var(--amber);
+  animation:blink 1.2s ease-in-out infinite;
+}
+.sb-dot.found { background:var(--green); animation:none; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+/* Scan prompt (centre écran) */
+#scan-prompt {
+  position:absolute; top:50%; left:50%;
+  transform:translate(-50%,-50%);
+  display:flex; flex-direction:column; align-items:center; gap:1rem;
+  transition:opacity 0.5s;
+}
+#scan-prompt.hide { opacity:0; pointer-events:none; }
+.scan-frame {
+  width:160px; height:160px; position:relative;
+}
+.scan-corner-inner {
+  position:absolute; width:24px; height:24px;
+  border-color:rgba(0,229,255,0.8); border-style:solid;
+}
+.sci-tl { top:0;left:0; border-width:2px 0 0 2px; }
+.sci-tr { top:0;right:0; border-width:2px 2px 0 0; }
+.sci-bl { bottom:0;left:0; border-width:0 0 2px 2px; }
+.sci-br { bottom:0;right:0; border-width:0 2px 2px 0; }
+.scan-line-anim {
+  position:absolute; left:4px; right:4px; height:1.5px;
+  background:linear-gradient(90deg,transparent,var(--cyan),transparent);
+  animation:scanV 2s ease-in-out infinite;
+}
+@keyframes scanV { 0%,100%{top:4px;opacity:0} 10%{opacity:0.8} 90%{opacity:0.8} 100%{top:152px} }
+.scan-label {
+  font-size:0.75rem; letter-spacing:0.12em; text-transform:uppercase;
+  color:rgba(255,255,255,0.6); text-align:center;
+}
+
+/* ── PANNEAU BAS — Zones ── */
+#bottom-panel {
+  position:absolute; bottom:0; left:0; right:0;
+  background:linear-gradient(0deg,rgba(0,0,0,0.9) 0%,rgba(0,0,0,0.6) 80%,transparent 100%);
+  padding:0.8rem 0.6rem 1.2rem;
+  pointer-events:all;
+  display:none;
+}
+#bottom-panel.visible { display:block; }
+
+.zone-tabs {
+  display:flex; gap:0.4rem; overflow-x:auto;
+  scrollbar-width:none; -webkit-overflow-scrolling:touch;
+  padding-bottom:0.2rem;
+}
+.zone-tabs::-webkit-scrollbar { display:none; }
+
+.zone-tab {
+  flex-shrink:0;
+  display:flex; flex-direction:column; align-items:center; gap:3px;
+  padding:0.5rem 0.7rem; border-radius:12px;
+  border:1px solid rgba(255,255,255,0.12);
+  background:rgba(0,0,0,0.5);
+  cursor:pointer; transition:all .2s;
+  min-width:68px;
+}
+.zone-tab.active {
+  border-color:var(--cyan);
+  background:rgba(0,229,255,0.12);
+}
+.zt-emoji { font-size:1.3rem; line-height:1; }
+.zt-name {
+  font-size:0.58rem; letter-spacing:0.05em;
+  color:rgba(255,255,255,0.55); text-align:center; line-height:1.2;
+}
+.zone-tab.active .zt-name { color:var(--cyan); }
+
+/* ── EXERCISE SHEET ── */
+#exercise-sheet {
+  position:fixed; bottom:0; left:0; right:0; z-index:200;
+  background:linear-gradient(180deg,#0a1828,#060e1c);
+  border-radius:24px 24px 0 0;
+  border-top:1px solid rgba(255,255,255,0.1);
+  padding:0.8rem 1.2rem 2rem;
+  transform:translateY(100%);
+  transition:transform 0.4s cubic-bezier(0.32,0.72,0,1);
+  max-height:70vh; overflow-y:auto;
+}
+#exercise-sheet.open { transform:translateY(0); }
+
+.sheet-handle {
+  width:36px; height:4px; border-radius:2px;
+  background:rgba(255,255,255,0.2); margin:0 auto 1rem;
+}
+.sheet-zone-header {
+  display:flex; align-items:center; gap:0.8rem; margin-bottom:1.2rem;
+  padding-bottom:1rem; border-bottom:1px solid rgba(255,255,255,0.07);
+}
+.szh-emoji { font-size:2rem; }
+.szh-name { font-family:'Bebas Neue'; font-size:1.4rem; letter-spacing:0.06em; }
+.szh-count { font-size:0.75rem; color:rgba(255,255,255,0.4); }
+
+.ex-list { display:flex; flex-direction:column; gap:0.7rem; }
+.ex-item {
+  padding:1rem; border-radius:14px;
+  border:1px solid rgba(255,255,255,0.07);
+  background:rgba(255,255,255,0.03);
+  cursor:pointer; transition:all .2s;
+}
+.ex-item.selected {
+  border-color:var(--cyan);
+  background:rgba(0,229,255,0.06);
+}
+.ex-item:active { transform:scale(0.98); }
+.ei-name { font-weight:600; font-size:0.95rem; margin-bottom:0.4rem; }
+.ei-desc { font-size:0.78rem; color:rgba(255,255,255,0.4); line-height:1.5; margin-bottom:0.6rem; }
+.ei-tags { display:flex; gap:0.4rem; flex-wrap:wrap; }
+.ei-tag {
+  font-size:0.62rem; letter-spacing:0.08em; text-transform:uppercase;
+  padding:0.2rem 0.6rem; border-radius:2rem;
+  border:1px solid rgba(255,255,255,0.12); color:rgba(255,255,255,0.45);
+}
+.ei-tag.hl { border-color:rgba(0,229,255,0.35); color:var(--cyan); }
+
+/* ── TIMER FLOATING ── */
+#timer-float {
+  position:fixed; top:70px; right:14px; z-index:150;
+  background:var(--dark); border:1px solid rgba(0,229,255,0.35);
+  border-radius:14px; padding:0.6rem 0.9rem;
+  display:none; flex-direction:column; align-items:center; gap:4px;
+  pointer-events:all;
+}
+#timer-float.visible { display:flex; }
+.tf-time {
+  font-family:'Bebas Neue'; font-size:1.8rem; color:var(--cyan);
+  letter-spacing:0.05em; line-height:1;
+}
+.tf-btns { display:flex; gap:0.4rem; }
+.tf-btn {
+  width:28px; height:28px; border-radius:50%; border:1px solid rgba(0,229,255,0.3);
+  background:rgba(0,229,255,0.08); color:var(--cyan);
+  font-size:0.75rem; cursor:pointer; display:flex; align-items:center; justify-content:center;
+}
+.tf-btn:active { transform:scale(0.9); }
+
+/* ── SHEET CLOSE BTN ── */
+.sheet-close-btn {
+  width:100%; padding:0.9rem; margin-top:1rem;
+  border-radius:12px; border:none;
+  background:rgba(255,255,255,0.07); color:rgba(255,255,255,0.7);
+  font-family:'Outfit'; font-size:0.9rem; font-weight:500;
+  cursor:pointer;
+}
+
+/* ── TOAST ── */
+#toast {
+  position:fixed; top:50%; left:50%; transform:translate(-50%,-50%) scale(0.9);
+  background:rgba(0,229,255,0.12); border:1px solid rgba(0,229,255,0.5);
+  border-radius:12px; padding:0.8rem 1.4rem;
+  font-size:0.85rem; font-weight:500; color:var(--cyan);
+  z-index:500; opacity:0; transition:all 0.3s ease;
+  pointer-events:none; white-space:nowrap; text-align:center;
+}
+#toast.show { opacity:1; transform:translate(-50%,-50%) scale(1); }
+
+/* ── MARKER PRINT PAGE ── */
+#marker-page {
+  position:fixed; inset:0; z-index:900;
+  background:white; display:none;
+  flex-direction:column; align-items:center; justify-content:center;
+  gap:1rem; padding:2rem;
+}
+#marker-page.visible { display:flex; }
+.mp-title {
+  font-family:'Bebas Neue'; font-size:1.8rem; color:black;
+  letter-spacing:0.08em; text-align:center;
+}
+.mp-sub { font-size:0.8rem; color:#666; text-align:center; line-height:1.6; }
+.mp-marker {
+  width:220px; height:220px;
+  border:8px solid black; background:white;
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:0 4px 20px rgba(0,0,0,0.15);
+}
+.mp-close {
+  padding:0.8rem 2rem; border-radius:10px; border:none;
+  background:#1565C0; color:white; font-size:1rem; font-weight:600;
+  cursor:pointer;
+}
+
+/* Printed marker instructions */
+.print-note {
+  background:#FFF9C4; border:1px solid #F9A825;
+  border-radius:10px; padding:0.8rem 1rem;
+  font-size:0.75rem; color:#555; line-height:1.6;
+  max-width:280px; text-align:center;
+}
+</style>
+
+</head>
+<body>
+
+<!-- ══════════════════════════════════════
+     SPLASH SCREEN
+══════════════════════════════════════ -->
+
+<div id="splash">
+  <div class="splash-logo">TONIC <span>CARPET</span><br><span style="color:var(--cyan)">AR</span></div>
+  <p class="splash-sub">Pointez votre iPhone vers le marqueur imprimé — les personnages apparaissent en réalité augmentée.</p>
+
+  <!-- Marqueur à imprimer -->
+
+  <div class="marker-print-box">
+    <!-- Marqueur HIRO standard AR.js (noir sur blanc) -->
+    <svg class="hiro-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <rect width="100" height="100" fill="white"/>
+      <rect x="10" y="10" width="80" height="80" fill="black"/>
+      <rect x="15" y="15" width="70" height="70" fill="white"/>
+      <!-- Pattern HIRO -->
+      <rect x="20" y="20" width="12" height="12" fill="black"/>
+      <rect x="36" y="20" width="8"  height="8"  fill="black"/>
+      <rect x="48" y="20" width="16" height="12" fill="black"/>
+      <rect x="68" y="20" width="12" height="12" fill="black"/>
+      <rect x="20" y="36" width="8"  height="8"  fill="black"/>
+      <rect x="36" y="36" width="12" height="12" fill="black"/>
+      <rect x="52" y="36" width="8"  height="8"  fill="black"/>
+      <rect x="68" y="36" width="8"  height="8"  fill="black"/>
+      <rect x="20" y="48" width="16" height="12" fill="black"/>
+      <rect x="44" y="48" width="12" height="8"  fill="black"/>
+      <rect x="60" y="48" width="20" height="12" fill="black"/>
+      <rect x="20" y="64" width="8"  height="8"  fill="black"/>
+      <rect x="36" y="64" width="8"  height="12" fill="black"/>
+      <rect x="48" y="64" width="12" height="8"  fill="black"/>
+      <rect x="64" y="64" width="16" height="12" fill="black"/>
+    </svg>
+    <p>📄 Imprimez ce marqueur<br>ou affichez-le sur un écran</p>
+  </div>
+
+  <div class="splash-steps">
+    <div class="splash-step">
+      <div class="ss-num">1</div>
+      <div class="ss-text"><strong>Imprimez</strong> le marqueur ci-dessus (ou montrez cet écran à un autre téléphone)</div>
+    </div>
+    <div class="splash-step">
+      <div class="ss-num">2</div>
+      <div class="ss-text"><strong>Posez</strong> le marqueur sur votre tapis Tonic Carpet ou sur le sol</div>
+    </div>
+    <div class="splash-step">
+      <div class="ss-num">3</div>
+      <div class="ss-text"><strong>Appuyez</strong> sur Démarrer → autorisez la caméra → pointez vers le marqueur</div>
+    </div>
+  </div>
+
+<button class="start-btn" onclick="startAR()">🎯 Démarrer l’AR</button>
+
+  <div style="font-size:0.65rem;color:rgba(255,255,255,0.2);text-align:center">
+    Fonctionne dans Safari iOS 15+ · Chrome Android · Autorisation caméra requise
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     SCÈNE AR (A-Frame + AR.js)
+══════════════════════════════════════ -->
+
+<a-scene
+id=“ar-scene”
+embedded
+arjs=“sourceType:webcam; debugUIEnabled:false; detectionMode:mono_and_matrix; matrixCodeType:3x3;”
+renderer=“logarithmicDepthBuffer:true; antialias:true;”
+vr-mode-ui=“enabled:false”
+style=“display:none”
+
+  <!-- ── MARQUEUR HIRO → Stickman YOGA ── -->
+
+  <a-marker preset="hiro" id="marker-hiro" smooth="true" smoothCount="5">
+
+```
+<!-- Sol / shadow plane -->
+<a-plane rotation="-90 0 0" width="0.8" height="1.8"
+         material="color:#1565C0; opacity:0.18; transparent:true; side:double"
+         position="0 0.001 0">
+</a-plane>
+
+<!-- ══ 6 STICKMEN sur les zones du tapis ══ -->
+
+<!-- ZONE YOGA — haut centre -->
+<a-entity id="stickman-yoga" position="0 0 -0.28" visible="true">
+  <!-- Aura -->
+  <a-cylinder height="0.003" radius="0.07"
+    material="color:#00E5FF;opacity:0.25;transparent:true"
+    position="0 0 0" animation="property:material.opacity;from:0.1;to:0.35;dur:1500;dir:alternate;loop:true">
+  </a-cylinder>
+  <!-- Corps -->
+  <a-cylinder id="yoga-body" height="0.12" radius="0.008" color="#00E5FF" position="0 0.1 0"
+    animation="property:rotation;from:0 0 -3;to:0 0 3;dur:2000;dir:alternate;loop:true;easing:easeInOutSine">
+  </a-cylinder>
+  <!-- Tête -->
+  <a-sphere radius="0.025" color="#00E5FF" position="0 0.185 0"
+    animation="property:position;from:0 0.185 0;to:0 0.192 0;dur:2000;dir:alternate;loop:true;easing:easeInOutSine">
+  </a-sphere>
+  <!-- Bras gauche méditation -->
+  <a-cylinder height="0.09" radius="0.006" color="#00E5FF"
+    position="-0.055 0.13 0" rotation="0 0 -55"
+    animation="property:rotation;from:0 0 -52;to:0 0 -60;dur:2000;dir:alternate;loop:true;easing:easeInOutSine">
+  </a-cylinder>
+  <!-- Bras droit méditation -->
+  <a-cylinder height="0.09" radius="0.006" color="#00E5FF"
+    position="0.055 0.13 0" rotation="0 0 55"
+    animation="property:rotation;from:0 0 52;to:0 0 60;dur:2000;dir:alternate;loop:true;easing:easeInOutSine">
+  </a-cylinder>
+  <!-- Jambe gauche croisée -->
+  <a-cylinder height="0.08" radius="0.006" color="#00E5FF"
+    position="-0.04 0.03 0" rotation="0 0 20">
+  </a-cylinder>
+  <!-- Jambe droite croisée -->
+  <a-cylinder height="0.08" radius="0.006" color="#00E5FF"
+    position="0.04 0.03 0" rotation="0 0 -20">
+  </a-cylinder>
+  <!-- Label flottant -->
+  <a-text value="🧘 YOGA" align="center" color="#00E5FF"
+    position="0 0.26 0" scale="0.18 0.18 0.18"
+    animation="property:position;from:0 0.26 0;to:0 0.28 0;dur:2000;dir:alternate;loop:true">
+  </a-text>
+</a-entity>
+
+<!-- ZONE CARDIO RUN — milieu gauche -->
+<a-entity id="stickman-cardio" position="-0.10 0 -0.08" visible="true">
+  <a-cylinder height="0.003" radius="0.06"
+    material="color:#00E676;opacity:0.25;transparent:true" position="0 0 0">
+  </a-cylinder>
+  <!-- Corps -->
+  <a-cylinder height="0.11" radius="0.008" color="#00E676" position="0 0.095 0"
+    animation="property:rotation;from:-5 0 0;to:5 0 0;dur:350;dir:alternate;loop:true;easing:linear">
+  </a-cylinder>
+  <!-- Tête -->
+  <a-sphere radius="0.022" color="#00E676" position="0 0.17 0"
+    animation="property:rotation;from:-5 0 0;to:5 0 0;dur:350;dir:alternate;loop:true;easing:linear">
+  </a-sphere>
+  <!-- Bras gauche -->
+  <a-cylinder height="0.08" radius="0.006" color="#00E676"
+    position="-0.05 0.12 0" rotation="20 0 -35"
+    animation="property:rotation;from:40 0 -35;to:-40 0 -35;dur:350;dir:alternate;loop:true;easing:linear">
+  </a-cylinder>
+  <!-- Bras droit -->
+  <a-cylinder height="0.08" radius="0.006" color="#00E676"
+    position="0.05 0.12 0" rotation="-20 0 35"
+    animation="property:rotation;from:-40 0 35;to:40 0 35;dur:350;dir:alternate;loop:true;easing:linear">
+  </a-cylinder>
+  <!-- Jambe gauche -->
+  <a-cylinder height="0.1" radius="0.007" color="#00E676"
+    position="-0.025 0.03 0" rotation="0 0 10"
+    animation="property:rotation;from:35 0 10;to:-35 0 10;dur:350;dir:alternate;loop:true;easing:linear">
+  </a-cylinder>
+  <!-- Jambe droite -->
+  <a-cylinder height="0.1" radius="0.007" color="#00E676"
+    position="0.025 0.03 0" rotation="0 0 -10"
+    animation="property:rotation;from:-35 0 -10;to:35 0 -10;dur:350;dir:alternate;loop:true;easing:linear">
+  </a-cylinder>
+  <a-text value="🏃 CARDIO" align="center" color="#00E676"
+    position="0 0.24 0" scale="0.16 0.16 0.16">
+  </a-text>
+</a-entity>
+
+<!-- ZONE COEUR SANTÉ — milieu droit -->
+<a-entity id="stickman-heart" position="0.10 0 -0.08" visible="true">
+  <a-cylinder height="0.003" radius="0.06"
+    material="color:#FF4081;opacity:0.25;transparent:true" position="0 0 0">
+  </a-cylinder>
+  <a-cylinder height="0.11" radius="0.008" color="#FF4081" position="0 0.095 0"
+    animation="property:rotation;from:-3 0 0;to:3 0 0;dur:600;dir:alternate;loop:true">
+  </a-cylinder>
+  <a-sphere radius="0.022" color="#FF4081" position="0 0.17 0">
+  </a-sphere>
+  <!-- Bras naturels -->
+  <a-cylinder height="0.08" radius="0.006" color="#FF4081"
+    position="-0.05 0.12 0" rotation="15 0 -30"
+    animation="property:rotation;from:20 0 -30;to:-20 0 -30;dur:600;dir:alternate;loop:true">
+  </a-cylinder>
+  <a-cylinder height="0.08" radius="0.006" color="#FF4081"
+    position="0.05 0.12 0" rotation="-15 0 30"
+    animation="property:rotation;from:-20 0 30;to:20 0 30;dur:600;dir:alternate;loop:true">
+  </a-cylinder>
+  <!-- Jambes marche -->
+  <a-cylinder height="0.1" radius="0.007" color="#FF4081"
+    position="-0.02 0.03 0"
+    animation="property:rotation;from:20 0 5;to:-20 0 5;dur:600;dir:alternate;loop:true">
+  </a-cylinder>
+  <a-cylinder height="0.1" radius="0.007" color="#FF4081"
+    position="0.02 0.03 0"
+    animation="property:rotation;from:-20 0 -5;to:20 0 -5;dur:600;dir:alternate;loop:true">
+  </a-cylinder>
+  <!-- Cœur flottant -->
+  <a-text value="❤️" align="center" position="0.05 0.22 0" scale="0.2 0.2 0.2"
+    animation="property:position;from:0.05 0.22 0;to:0.05 0.25 0;dur:800;dir:alternate;loop:true">
+  </a-text>
+  <a-text value="SANTÉ" align="center" color="#FF4081"
+    position="0 0.24 0" scale="0.16 0.16 0.16">
+  </a-text>
+</a-entity>
+
+<!-- ZONE SQUAT FORCE — bas gauche -->
+<a-entity id="stickman-strength" position="-0.10 0 0.08" visible="true">
+  <a-cylinder height="0.003" radius="0.065"
+    material="color:#FFD740;opacity:0.25;transparent:true" position="0 0 0">
+  </a-cylinder>
+  <!-- Corps (descend en squat) -->
+  <a-cylinder height="0.10" radius="0.008" color="#FFD740" position="0 0.07 0"
+    animation="property:position;from:0 0.07 0;to:0 0.04 0;dur:800;dir:alternate;loop:true;easing:easeInOutSine">
+  </a-cylinder>
+  <a-sphere radius="0.022" color="#FFD740" position="0 0.14 0"
+    animation="property:position;from:0 0.14 0;to:0 0.10 0;dur:800;dir:alternate;loop:true;easing:easeInOutSine">
+  </a-sphere>
+  <!-- Bras tendus devant -->
+  <a-cylinder height="0.09" radius="0.006" color="#FFD740"
+    position="-0.055 0.1 0" rotation="0 0 -40"
+    animation="property:rotation;from:0 0 -40;to:0 0 -25;dur:800;dir:alternate;loop:true">
+  </a-cylinder>
+  <a-cylinder height="0.09" radius="0.006" color="#FFD740"
+    position="0.055 0.1 0" rotation="0 0 40"
+    animation="property:rotation;from:0 0 40;to:0 0 25;dur:800;dir:alternate;loop:true">
+  </a-cylinder>
+  <!-- Jambes squat -->
+  <a-cylinder height="0.09" radius="0.007" color="#FFD740"
+    position="-0.03 0.02 0" rotation="0 0 15"
+    animation="property:rotation;from:0 0 15;to:0 0 40;dur:800;dir:alternate;loop:true">
+  </a-cylinder>
+  <a-cylinder height="0.09" radius="0.007" color="#FFD740"
+    position="0.03 0.02 0" rotation="0 0 -15"
+    animation="property:rotation;from:0 0 -15;to:0 0 -40;dur:800;dir:alternate;loop:true">
+  </a-cylinder>
+  <a-text value="💪 SQUAT" align="center" color="#FFD740"
+    position="0 0.22 0" scale="0.16 0.16 0.16">
+  </a-text>
+</a-entity>
+
+<!-- ZONE STRETCHING — bas droit -->
+<a-entity id="stickman-stretch" position="0.10 0 0.08" visible="true">
+  <a-cylinder height="0.003" radius="0.065"
+    material="color:#a78bfa;opacity:0.25;transparent:true" position="0 0 0">
+  </a-cylinder>
+  <a-cylinder height="0.11" radius="0.008" color="#a78bfa" position="0 0.095 0">
+  </a-cylinder>
+  <a-sphere radius="0.022" color="#a78bfa" position="0 0.17 0">
+  </a-sphere>
+  <!-- Grands bras étirés -->
+  <a-cylinder height="0.1" radius="0.006" color="#a78bfa"
+    position="-0.065 0.12 0" rotation="0 0 -60"
+    animation="property:rotation;from:0 0 -55;to:0 0 -80;dur:1200;dir:alternate;loop:true;easing:easeInOutSine">
+  </a-cylinder>
+  <a-cylinder height="0.1" radius="0.006" color="#a78bfa"
+    position="0.065 0.12 0" rotation="0 0 60"
+    animation="property:rotation;from:0 0 55;to:0 0 80;dur:1200;dir:alternate;loop:true;easing:easeInOutSine">
+  </a-cylinder>
+  <!-- Jambes écartées -->
+  <a-cylinder height="0.1" radius="0.007" color="#a78bfa"
+    position="-0.04 0.02 0" rotation="0 0 20"
+    animation="property:rotation;from:0 0 20;to:0 0 40;dur:1200;dir:alternate;loop:true">
+  </a-cylinder>
+  <a-cylinder height="0.1" radius="0.007" color="#a78bfa"
+    position="0.04 0.02 0" rotation="0 0 -20"
+    animation="property:rotation;from:0 0 -20;to:0 0 -40;dur:1200;dir:alternate;loop:true">
+  </a-cylinder>
+  <a-text value="🤸 STRETCH" align="center" color="#a78bfa"
+    position="0 0.24 0" scale="0.16 0.16 0.16">
+  </a-text>
+</a-entity>
+
+<!-- ZONE NOUVEAU — centre bas -->
+<a-entity id="stickman-new" position="0 0 0.22" visible="true">
+  <a-cylinder height="0.003" radius="0.07"
+    material="color:#00E5FF;opacity:0.3;transparent:true" position="0 0 0"
+    animation="property:scale;from:1 1 1;to:1.2 1 1.2;dur:400;dir:alternate;loop:true">
+  </a-cylinder>
+  <!-- Jumping jack — corps qui saute -->
+  <a-cylinder height="0.11" radius="0.008" color="#00E5FF" position="0 0.12 0"
+    animation="property:position;from:0 0.12 0;to:0 0.16 0;dur:400;dir:alternate;loop:true;easing:easeInOutSine">
+  </a-cylinder>
+  <a-sphere radius="0.022" color="#00E5FF" position="0 0.2 0"
+    animation="property:position;from:0 0.20 0;to:0 0.24 0;dur:400;dir:alternate;loop:true;easing:easeInOutSine">
+  </a-sphere>
+  <!-- Bras écartés haut -->
+  <a-cylinder height="0.09" radius="0.006" color="#00E5FF"
+    position="-0.06 0.17 0" rotation="0 0 -50"
+    animation="property:rotation;from:0 0 -35;to:0 0 -75;dur:400;dir:alternate;loop:true">
+  </a-cylinder>
+  <a-cylinder height="0.09" radius="0.006" color="#00E5FF"
+    position="0.06 0.17 0" rotation="0 0 50"
+    animation="property:rotation;from:0 0 35;to:0 0 75;dur:400;dir:alternate;loop:true">
+  </a-cylinder>
+  <!-- Jambes écartées saut -->
+  <a-cylinder height="0.1" radius="0.007" color="#00E5FF"
+    position="-0.04 0.04 0" rotation="0 0 15"
+    animation="property:rotation;from:0 0 10;to:0 0 35;dur:400;dir:alternate;loop:true">
+  </a-cylinder>
+  <a-cylinder height="0.1" radius="0.007" color="#00E5FF"
+    position="0.04 0.04 0" rotation="0 0 -15"
+    animation="property:rotation;from:0 0 -10;to:0 0 -35;dur:400;dir:alternate;loop:true">
+  </a-cylinder>
+  <a-text value="⚡ JUMPING JACK" align="center" color="#00E5FF"
+    position="0 0.30 0" scale="0.14 0.14 0.14"
+    animation="property:position;from:0 0.30 0;to:0 0.33 0;dur:400;dir:alternate;loop:true">
+  </a-text>
+</a-entity>
+
+<!-- Sol décoratif tapis -->
+<a-plane rotation="-90 0 0" width="0.25" height="0.6"
+         material="color:#1565C0;opacity:0.35;transparent:true;side:double"
+         position="0 0.0005 0">
+</a-plane>
+<!-- Cercles décoratifs sur le plan -->
+<a-ring radius-inner="0.055" radius-outer="0.065" color="#ffffff"
+  material="opacity:0.25;transparent:true"
+  rotation="-90 0 0" position="0 0.001 -0.28">
+</a-ring>
+<a-ring radius-inner="0.045" radius-outer="0.055" color="#ffffff"
+  material="opacity:0.2;transparent:true"
+  rotation="-90 0 0" position="-0.10 0.001 -0.08">
+</a-ring>
+<a-ring radius-inner="0.045" radius-outer="0.055" color="#ffffff"
+  material="opacity:0.2;transparent:true"
+  rotation="-90 0 0" position="0.10 0.001 -0.08">
+</a-ring>
+<a-ring radius-inner="0.045" radius-outer="0.055" color="#ffffff"
+  material="opacity:0.2;transparent:true"
+  rotation="-90 0 0" position="-0.10 0.001 0.08">
+</a-ring>
+<a-ring radius-inner="0.045" radius-outer="0.055" color="#ffffff"
+  material="opacity:0.2;transparent:true"
+  rotation="-90 0 0" position="0.10 0.001 0.08">
+</a-ring>
+<a-ring radius-inner="0.055" radius-outer="0.065" color="#ffffff"
+  material="opacity:0.25;transparent:true"
+  rotation="-90 0 0" position="0 0.001 0.22">
+</a-ring>
+<!-- Marqueur M central -->
+<a-text value="M" align="center" color="white"
+  material="opacity:0.5;transparent:true"
+  rotation="-90 0 0" position="0 0.002 0" scale="0.12 0.12 0.12">
+</a-text>
+```
+
+  </a-marker>
+
+  <!-- Caméra AR -->
+
+<a-entity camera></a-entity>
+
+</a-scene>
+
+<!-- ══════════════════════════════════════
+     HUD OVERLAY
+══════════════════════════════════════ -->
+
+<div id="hud">
+  <div class="hud-corner tl"></div>
+  <div class="hud-corner tr"></div>
+  <div class="hud-corner bl"></div>
+  <div class="hud-corner br"></div>
+
+  <!-- Status bar -->
+
+  <div id="status-bar">
+    <div class="sb-logo">TONIC <span>CARPET</span> AR</div>
+    <div class="sb-status">
+      <div class="sb-dot" id="status-dot"></div>
+      <span id="status-text" style="color:rgba(255,165,0,0.9)">Recherche tapis…</span>
+    </div>
+  </div>
+
+  <!-- Scan prompt -->
+
+  <div id="scan-prompt">
+    <div class="scan-frame">
+      <div class="scan-corner-inner sci-tl"></div>
+      <div class="scan-corner-inner sci-tr"></div>
+      <div class="scan-corner-inner sci-bl"></div>
+      <div class="scan-corner-inner sci-br"></div>
+      <div class="scan-line-anim"></div>
+    </div>
+    <div class="scan-label">Pointez vers le marqueur<br>imprimé sur le tapis</div>
+  </div>
+
+  <!-- Bottom zones panel -->
+
+  <div id="bottom-panel">
+    <div class="zone-tabs" id="zone-tabs">
+      <div class="zone-tab active" data-zone="yoga" onclick="selectZone('yoga',this)">
+        <span class="zt-emoji">🧘</span>
+        <span class="zt-name">Yoga</span>
+      </div>
+      <div class="zone-tab" data-zone="cardio" onclick="selectZone('cardio',this)">
+        <span class="zt-emoji">🏃</span>
+        <span class="zt-name">Cardio</span>
+      </div>
+      <div class="zone-tab" data-zone="heart" onclick="selectZone('heart',this)">
+        <span class="zt-emoji">❤️</span>
+        <span class="zt-name">Santé</span>
+      </div>
+      <div class="zone-tab" data-zone="strength" onclick="selectZone('strength',this)">
+        <span class="zt-emoji">💪</span>
+        <span class="zt-name">Force</span>
+      </div>
+      <div class="zone-tab" data-zone="stretch" onclick="selectZone('stretch',this)">
+        <span class="zt-emoji">🤸</span>
+        <span class="zt-name">Stretch</span>
+      </div>
+      <div class="zone-tab" data-zone="new" onclick="selectZone('new',this)">
+        <span class="zt-emoji">⚡</span>
+        <span class="zt-name">Nouveau</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Timer flottant -->
+
+<div id="timer-float">
+  <div class="tf-time" id="timer-display">00:00</div>
+  <div class="tf-btns">
+    <button class="tf-btn" onclick="toggleTimer()">▶</button>
+    <button class="tf-btn" onclick="resetTimer()">↺</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     EXERCISE SHEET
+══════════════════════════════════════ -->
+
+<div id="exercise-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-zone-header">
+    <span class="szh-emoji" id="sheet-emoji">🧘</span>
+    <div>
+      <div class="szh-name" id="sheet-name">Yoga · Méditation</div>
+      <div class="szh-count" id="sheet-count">3 exercices</div>
+    </div>
+  </div>
+  <div class="ex-list" id="ex-list"></div>
+  <button class="sheet-close-btn" onclick="closeSheet()">Fermer</button>
+</div>
+
+<!-- Toast -->
+
+<div id="toast"></div>
+
+<script>
+// ══ DONNÉES ══
+const ZONES = {
+  yoga: {
+    name:'Yoga · Méditation', emoji:'🧘', entityId:'stickman-yoga',
+    exercises:[
+      {name:'Lotus Assis',      desc:'Position lotus, respiration 4-4-8. Le personnage AR guide votre posture.',          tags:['8 min','Débutant']},
+      {name:'Guerrier I',       desc:'Bras levés, jambe avant à 90°. Animation miroir avec votre stickman.',              tags:['3×30s','Intermédiaire']},
+      {name:'Chien tête en bas',desc:'Colonne allongée, talons au sol. Guidage AR inclus pour la profondeur.',            tags:['5 min','Débutant']}
+    ]
+  },
+  cardio: {
+    name:'Cardio · Course', emoji:'🏃', entityId:'stickman-cardio',
+    exercises:[
+      {name:'Course en place',  desc:'60 foulées/min. Genoux montants. Stickman AR synchronisé à votre rythme.',         tags:['5 min','Cardio']},
+      {name:'Burpee complet',   desc:'Debout → planche → saut. Animation en 3 phases distinctes.',                        tags:['10 reps','Avancé']},
+      {name:'High Knees',       desc:'Genoux à hauteur de hanches. Indicateur de tempo AR visible.',                      tags:['45s','Intermédiaire']}
+    ]
+  },
+  heart: {
+    name:'Cardio · Santé', emoji:'❤️', entityId:'stickman-heart',
+    exercises:[
+      {name:'Marche rapide',    desc:'Zone cardiaque 65-75%. Stickman AR au rythme cible. Compatible Apple Santé.',       tags:['20 min','Débutant']},
+      {name:'Step touch',       desc:'Pas latéraux rythmés. Faible impact, idéal warm-up ou récupération.',               tags:['10 min','Doux']},
+      {name:'Circuit santé',    desc:'6 exercices bas-impact enchaînés. Monitoring cardiaque continu.',                    tags:['30 min','Intermédiaire']}
+    ]
+  },
+  strength: {
+    name:'Renforcement · Squat', emoji:'💪', entityId:'stickman-strength',
+    exercises:[
+      {name:'Squat profond',    desc:'90° de flexion, dos droit. Personnage AR face à vous guide la descente.',           tags:['4×12','Jambes']},
+      {name:'Fente avant',      desc:'Genou avant à 90°. AR alterne gauche/droite automatiquement.',                      tags:['3×10','Fessiers']},
+      {name:'Goblet squat',     desc:'Mains jointes, squat large. Travail adducteurs + quadriceps.',                      tags:['4×15','Force']}
+    ]
+  },
+  stretch: {
+    name:'Stretching', emoji:'🤸', entityId:'stickman-stretch',
+    exercises:[
+      {name:'Grand écart lat.', desc:'Jambes écartées, penché en avant. Personnage AR maintient la position.',            tags:['3×30s','Souplesse']},
+      {name:'Étirement ischio', desc:'Jambe tendue, inclinaison avant. AR guide l\'amplitude progressivement.',           tags:['2×45s','Débutant']},
+      {name:'Pigeon yoga',      desc:'Hanche ouverte au sol. Pose de récupération la plus efficace.',                     tags:['2×60s','Hanche']}
+    ]
+  },
+  new: {
+    name:'Nouveau · Jumping Jack', emoji:'⚡', entityId:'stickman-new',
+    exercises:[
+      {name:'Jumping Jack',     desc:'Écart synchronisé bras-jambes. Animation AR rapide avec décompte visible.',         tags:['50 reps','Débutant']},
+      {name:'Star Jump',        desc:'Variante avec saut plus haut. AR adapte la vitesse à votre rythme.',                tags:['30 reps','Intermédiaire']},
+      {name:'Box Jump',         desc:'Saut sur place avec réception souple. Nouveau programme hebdomadaire.',             tags:['3×15','Avancé']}
+    ]
+  }
+};
+
+// ══ STATE ══
+let arStarted = false;
+let markerFound = false;
+let activeZone = 'yoga';
+let timerRunning = false;
+let timerSecs = 0;
+let timerInterval = null;
+let sheetOpen = false;
+
+// ══ START AR ══
+function startAR() {
+  document.getElementById('splash').classList.add('hide');
+  setTimeout(() => {
+    document.getElementById('splash').style.display = 'none';
+    document.getElementById('ar-scene').style.display = 'block';
+    document.getElementById('hud').classList.add('visible');
+    arStarted = true;
+    setupMarkerEvents();
+  }, 600);
+}
+
+// ══ MARKER EVENTS ══
+function setupMarkerEvents() {
+  const marker = document.getElementById('marker-hiro');
+  if (!marker) { setTimeout(setupMarkerEvents, 500); return; }
+
+  marker.addEventListener('markerFound', () => {
+    markerFound = true;
+    document.getElementById('status-dot').classList.add('found');
+    document.getElementById('status-text').style.color = 'var(--green)';
+    document.getElementById('status-text').textContent = 'Tapis reconnu ✓';
+    document.getElementById('scan-prompt').classList.add('hide');
+    document.getElementById('bottom-panel').classList.add('visible');
+    document.getElementById('timer-float').classList.add('visible');
+    showToast('Tapis détecté ! 🎯');
+
+    // Vibration retour haptique
+    if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+  });
+
+  marker.addEventListener('markerLost', () => {
+    markerFound = false;
+    document.getElementById('status-dot').classList.remove('found');
+    document.getElementById('status-text').style.color = 'rgba(255,165,0,0.9)';
+    document.getElementById('status-text').textContent = 'Repositionnez le tapis…';
+    document.getElementById('scan-prompt').classList.remove('hide');
+  });
+}
+
+// ══ ZONE SELECTION ══
+function selectZone(zoneId, el) {
+  activeZone = zoneId;
+
+  // Onglet actif
+  document.querySelectorAll('.zone-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+
+  // Highlight stickman (tous visibles en AR, on met juste en évidence)
+  const zone = ZONES[zoneId];
+  showToast(zone.emoji + ' ' + zone.name);
+
+  // Ouvrir la fiche exercices
+  openSheet(zoneId);
+}
+
+// ══ EXERCISE SHEET ══
+function openSheet(zoneId) {
+  const z = ZONES[zoneId];
+  document.getElementById('sheet-emoji').textContent = z.emoji;
+  document.getElementById('sheet-name').textContent  = z.name;
+  document.getElementById('sheet-count').textContent = z.exercises.length + ' exercices';
+
+  const list = document.getElementById('ex-list');
+  list.innerHTML = z.exercises.map((ex, i) => `
+    <div class="ex-item ${i===0?'selected':''}" onclick="selectExercise(this)">
+      <div class="ei-name">${ex.name}</div>
+      <div class="ei-desc">${ex.desc}</div>
+      <div class="ei-tags">
+        ${ex.tags.map((t,ti) => `<span class="ei-tag ${ti===0?'hl':''}">${t}</span>`).join('')}
+      </div>
+    </div>
+  `).join('');
+
+  document.getElementById('exercise-sheet').classList.add('open');
+  sheetOpen = true;
+}
+
+function closeSheet() {
+  document.getElementById('exercise-sheet').classList.remove('open');
+  sheetOpen = false;
+}
+
+function selectExercise(el) {
+  document.querySelectorAll('.ex-item').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+// ══ TIMER ══
+function toggleTimer() {
+  timerRunning = !timerRunning;
+  const btn = document.querySelector('.tf-btn');
+  if (timerRunning) {
+    btn.textContent = '⏸';
+    timerInterval = setInterval(() => { timerSecs++; updateTimerDisplay(); }, 1000);
+  } else {
+    btn.textContent = '▶';
+    clearInterval(timerInterval);
+  }
+}
+
+function resetTimer() {
+  timerRunning = false;
+  clearInterval(timerInterval);
+  timerSecs = 0;
+  document.querySelector('.tf-btn').textContent = '▶';
+  updateTimerDisplay();
+}
+
+function updateTimerDisplay() {
+  const m = String(Math.floor(timerSecs/60)).padStart(2,'0');
+  const s = String(timerSecs%60).padStart(2,'0');
+  document.getElementById('timer-display').textContent = m+':'+s;
+}
+
+// ══ TOAST ══
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// Close sheet on background tap
+document.addEventListener('click', e => {
+  if (sheetOpen && !document.getElementById('exercise-sheet').contains(e.target) &&
+      !document.querySelector('.zone-tabs').contains(e.target)) {
+    closeSheet();
+  }
+});
+</script>
+
+</body>
+</html>
