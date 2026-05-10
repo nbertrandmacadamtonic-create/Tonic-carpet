@@ -1,1 +1,1402 @@
+<!DOCTYPE html>
 
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+
+<!-- PWA -->
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Tonic Carpet">
+<meta name="application-name" content="Tonic Carpet">
+<meta name="theme-color" content="#080808">
+<meta name="description" content="Tonic Carpet AR — Votre tapis devient votre coach">
+
+<!-- PWA Icons (inline SVG via data URI) -->
+
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%23080808'/%3E%3Ccircle cx='256' cy='256' r='180' fill='none' stroke='%23C9A84C' stroke-width='3' opacity='0.3'/%3E%3Ccircle cx='256' cy='256' r='120' fill='none' stroke='%23C9A84C' stroke-width='2' opacity='0.2'/%3E%3Ccircle cx='256' cy='140' r='38' fill='none' stroke='%23C9A84C' stroke-width='8'/%3E%3Cline x1='256' y1='178' x2='256' y2='290' stroke='%23C9A84C' stroke-width='8' stroke-linecap='round'/%3E%3Cline x1='256' y1='210' x2='196' y2='250' stroke='%23C9A84C' stroke-width='7' stroke-linecap='round'/%3E%3Cline x1='256' y1='210' x2='316' y2='250' stroke='%23C9A84C' stroke-width='7' stroke-linecap='round'/%3E%3Cline x1='256' y1='290' x2='218' y2='370' stroke='%23C9A84C' stroke-width='7' stroke-linecap='round'/%3E%3Cline x1='256' y1='290' x2='294' y2='370' stroke='%23C9A84C' stroke-width='7' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23080808'/%3E%3Ccircle cx='16' cy='9' r='4' fill='none' stroke='%23C9A84C' stroke-width='1.5'/%3E%3Cline x1='16' y1='13' x2='16' y2='22' stroke='%23C9A84C' stroke-width='1.5'/%3E%3Cline x1='16' y1='16' x2='9' y2='20' stroke='%23C9A84C' stroke-width='1.5'/%3E%3Cline x1='16' y1='16' x2='23' y2='20' stroke='%23C9A84C' stroke-width='1.5'/%3E%3Cline x1='16' y1='22' x2='11' y2='29' stroke='%23C9A84C' stroke-width='1.5'/%3E%3Cline x1='16' y1='22' x2='21' y2='29' stroke='%23C9A84C' stroke-width='1.5'/%3E%3C/svg%3E">
+
+<title>Tonic Carpet</title>
+
+<!-- AR.js + A-Frame -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/aframe/1.4.2/aframe.min.js"></script>
+
+<script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Rajdhani:wght@300;400;500;600;700&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --gold:      #C9A84C;
+  --gold-lt:   #E8C97A;
+  --gold-dk:   #8B6914;
+  --gold-glow: rgba(201,168,76,0.15);
+  --black:     #080808;
+  --deep:      #0C0C0C;
+  --panel:     rgba(12,12,12,0.96);
+  --border:    rgba(201,168,76,0.2);
+  --white:     #F5F0E8;
+  --muted:     rgba(245,240,232,0.38);
+  --safe-top:  env(safe-area-inset-top, 0px);
+  --safe-bot:  env(safe-area-inset-bottom, 0px);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html, body { height:100%; width:100%; overflow:hidden; background:var(--black); }
+body { font-family:'Rajdhani', sans-serif; color:var(--white); }
+
+/* Grain texture */
+body::after {
+  content:''; position:fixed; inset:0; z-index:9998; pointer-events:none; opacity:0.03;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ══ SCREENS ══ */
+.screen { position:fixed; inset:0; z-index:10; transition:opacity 0.7s ease, transform 0.7s ease; }
+.screen.hidden { opacity:0; pointer-events:none; transform:scale(1.02); }
+
+/* ══════════════════════════════════
+   SCREEN 1 — SPLASH
+══════════════════════════════════ */
+#screen-splash {
+  background:var(--black);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:0; padding:2rem;
+  background-image:
+    radial-gradient(ellipse 70% 50% at 50% 60%, rgba(201,168,76,0.06) 0%, transparent 60%);
+}
+
+.splash-ornament {
+  width:80px; height:80px; position:relative; margin-bottom:2.5rem;
+  animation:fadeUp 1s 0.2s ease both;
+}
+.splash-ornament svg { width:100%; height:100%; }
+
+.splash-title {
+  font-family:'Cormorant Garamond'; font-weight:300;
+  font-size:clamp(3rem,10vw,5rem); line-height:0.9; letter-spacing:0.04em;
+  text-align:center; color:var(--white);
+  animation:fadeUp 1s 0.4s ease both;
+}
+.splash-title em { font-style:italic; color:var(--gold); display:block; }
+
+.splash-rule {
+  width:60px; height:1px;
+  background:linear-gradient(90deg,transparent,var(--gold),transparent);
+  margin:2rem auto;
+  animation:fadeUp 1s 0.6s ease both;
+}
+
+.splash-sub {
+  font-family:'Cormorant Garamond'; font-style:italic; font-weight:300;
+  font-size:1rem; color:var(--muted); text-align:center;
+  letter-spacing:0.04em; line-height:1.7; max-width:320px;
+  animation:fadeUp 1s 0.7s ease both;
+}
+
+.splash-btn {
+  margin-top:3rem;
+  padding:1rem 3rem; border:1px solid var(--gold);
+  background:transparent; color:var(--gold-lt);
+  font-family:'Rajdhani'; font-weight:600; font-size:0.82rem;
+  letter-spacing:0.25em; text-transform:uppercase; cursor:pointer;
+  transition:all 0.3s ease; position:relative; overflow:hidden;
+  animation:fadeUp 1s 0.9s ease both;
+}
+.splash-btn::before {
+  content:''; position:absolute; inset:0;
+  background:var(--gold); transform:translateX(-101%); transition:transform 0.3s ease;
+}
+.splash-btn:active::before { transform:translateX(0); }
+.splash-btn span { position:relative; z-index:1; }
+.splash-btn:active span { color:var(--black); }
+
+.splash-install-hint {
+  margin-top:1.5rem;
+  font-family:'DM Mono'; font-size:0.58rem; letter-spacing:0.15em;
+  text-transform:uppercase; color:rgba(201,168,76,0.35); text-align:center;
+  animation:fadeUp 1s 1.1s ease both;
+}
+
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(16px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+
+/* ══════════════════════════════════
+   SCREEN 2 — MARQUEUR (à imprimer)
+══════════════════════════════════ */
+#screen-marker {
+  background:var(--black);
+  display:flex; flex-direction:column; align-items:center;
+  padding:calc(var(--safe-top) + 1.5rem) 2rem calc(var(--safe-bot) + 2rem);
+  overflow-y:auto;
+}
+
+.marker-nav {
+  width:100%; display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:2rem;
+}
+.marker-nav-back {
+  font-family:'DM Mono'; font-size:0.6rem; letter-spacing:0.15em; text-transform:uppercase;
+  color:var(--muted); background:none; border:none; cursor:pointer; padding:0.5rem 0;
+}
+.marker-nav-step {
+  font-family:'DM Mono'; font-size:0.58rem; letter-spacing:0.12em;
+  color:rgba(201,168,76,0.4);
+}
+
+.marker-title {
+  font-family:'Cormorant Garamond'; font-style:italic; font-weight:300;
+  font-size:2rem; color:var(--white); margin-bottom:0.5rem; text-align:center;
+}
+.marker-sub {
+  font-family:'DM Mono'; font-size:0.6rem; letter-spacing:0.15em; text-transform:uppercase;
+  color:var(--gold); margin-bottom:2.5rem; text-align:center;
+}
+
+/* Le marqueur custom Tonic Carpet */
+.marker-card {
+  background:white; border-radius:8px;
+  padding:20px; margin-bottom:2rem;
+  box-shadow:0 20px 60px rgba(0,0,0,0.5), 0 0 40px rgba(201,168,76,0.1);
+  display:flex; flex-direction:column; align-items:center; gap:12px;
+  width:260px;
+}
+.marker-label-top {
+  font-family:'Cormorant Garamond'; font-size:0.7rem; color:#333;
+  letter-spacing:0.2em; text-transform:uppercase;
+}
+
+/* Marqueur SVG Tonic Carpet custom */
+.tonic-marker {
+  width:200px; height:200px;
+  border:6px solid #000;
+  background:#fff;
+  position:relative;
+  display:flex; align-items:center; justify-content:center;
+}
+
+.marker-label-bot {
+  font-family:'Cormorant Garamond'; font-style:italic; font-size:0.75rem; color:#888;
+  text-align:center;
+}
+
+.marker-steps {
+  width:100%; max-width:340px; display:flex; flex-direction:column; gap:0.8rem;
+}
+.ms-step {
+  display:flex; gap:1rem; align-items:flex-start;
+  padding:0.9rem 1rem;
+  border:1px solid var(--border); background:rgba(201,168,76,0.03);
+}
+.ms-n {
+  font-family:'Cormorant Garamond'; font-size:1.5rem; font-weight:300; font-style:italic;
+  color:var(--gold); line-height:1; min-width:1.5rem;
+}
+.ms-text { font-size:0.82rem; line-height:1.5; color:var(--muted); }
+.ms-text strong { color:var(--white); font-weight:600; }
+
+.marker-cta {
+  margin-top:1.5rem; width:100%; max-width:300px;
+  padding:1rem; border:1px solid var(--gold); background:transparent;
+  color:var(--gold-lt); font-family:'Rajdhani'; font-weight:600;
+  font-size:0.82rem; letter-spacing:0.2em; text-transform:uppercase;
+  cursor:pointer; transition:all 0.3s ease; position:relative; overflow:hidden;
+}
+.marker-cta::before {
+  content:''; position:absolute; inset:0; background:var(--gold);
+  transform:translateX(-101%); transition:transform 0.3s;
+}
+.marker-cta:active::before { transform:translateX(0); }
+.marker-cta span { position:relative; z-index:1; }
+.marker-cta:active span { color:var(--black); }
+
+/* ══════════════════════════════════
+   SCREEN 3 — AR CAMERA
+══════════════════════════════════ */
+#screen-ar { background:#000; z-index:20; }
+
+/* A-Frame full screen */
+#ar-scene {
+  position:absolute; inset:0; width:100% !important; height:100% !important;
+}
+a-scene { width:100% !important; height:100% !important; }
+
+/* AR HUD overlay */
+#ar-hud {
+  position:absolute; inset:0; z-index:50; pointer-events:none;
+}
+
+/* Coin brackets */
+.hud-br {
+  position:absolute; width:44px; height:44px;
+  border-color:rgba(201,168,76,0.6); border-style:solid;
+  transition:all 0.4s ease;
+}
+.hud-br.tl { top:calc(var(--safe-top) + 60px); left:16px; border-width:1.5px 0 0 1.5px; }
+.hud-br.tr { top:calc(var(--safe-top) + 60px); right:16px; border-width:1.5px 1.5px 0 0; }
+.hud-br.bl { bottom:calc(var(--safe-bot) + 120px); left:16px; border-width:0 0 1.5px 1.5px; }
+.hud-br.br { bottom:calc(var(--safe-bot) + 120px); right:16px; border-width:0 1.5px 1.5px 0; }
+.hud-br.detected { border-color:var(--gold); }
+
+/* Top bar AR */
+#ar-topbar {
+  position:absolute; top:0; left:0; right:0; z-index:51; pointer-events:all;
+  padding:calc(var(--safe-top) + 0.6rem) 1.2rem 0.8rem;
+  background:linear-gradient(180deg, rgba(8,8,8,0.9) 0%, transparent 100%);
+  display:flex; align-items:center; justify-content:space-between;
+}
+.ar-logo {
+  font-family:'Cormorant Garamond'; font-size:1.1rem; font-weight:300;
+  letter-spacing:0.1em; color:var(--white);
+}
+.ar-logo em { font-style:italic; color:var(--gold); }
+.ar-status {
+  display:flex; align-items:center; gap:0.5rem;
+  font-family:'DM Mono'; font-size:0.58rem; letter-spacing:0.12em; text-transform:uppercase;
+}
+.ar-dot {
+  width:6px; height:6px; border-radius:50%; background:rgba(201,168,76,0.5);
+  animation:pulse 1.5s ease-in-out infinite;
+}
+.ar-dot.live { background:var(--gold); animation:none; box-shadow:0 0 8px var(--gold); }
+@keyframes pulse { 0%,100%{opacity:0.4} 50%{opacity:1} }
+.ar-back-btn {
+  font-family:'DM Mono'; font-size:0.6rem; letter-spacing:0.15em; text-transform:uppercase;
+  color:var(--muted); background:none; border:none; cursor:pointer; padding:0.4rem; pointer-events:all;
+}
+
+/* Scan prompt */
+#scan-prompt {
+  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+  display:flex; flex-direction:column; align-items:center; gap:1.2rem;
+  z-index:52; pointer-events:none; transition:opacity 0.5s ease;
+}
+#scan-prompt.hide { opacity:0; }
+.sp-frame { width:180px; height:180px; position:relative; }
+.sp-corner {
+  position:absolute; width:24px; height:24px;
+  border-color:rgba(201,168,76,0.7); border-style:solid;
+}
+.sp-corner.tl{top:0;left:0;border-width:2px 0 0 2px}
+.sp-corner.tr{top:0;right:0;border-width:2px 2px 0 0}
+.sp-corner.bl{bottom:0;left:0;border-width:0 0 2px 2px}
+.sp-corner.br{bottom:0;right:0;border-width:0 2px 2px 0}
+.sp-scan {
+  position:absolute; left:4px; right:4px; height:1px;
+  background:linear-gradient(90deg,transparent,var(--gold),transparent);
+  animation:scanV 2.5s ease-in-out infinite; opacity:0.8;
+}
+@keyframes scanV { 0%,100%{top:4px;opacity:0} 8%{opacity:0.8} 92%{opacity:0.8} 100%{top:172px} }
+.sp-label {
+  font-family:'Cormorant Garamond'; font-style:italic; font-size:1rem;
+  color:rgba(245,240,232,0.6); text-align:center; letter-spacing:0.06em;
+}
+.sp-hint {
+  font-family:'DM Mono'; font-size:0.55rem; letter-spacing:0.15em; text-transform:uppercase;
+  color:rgba(201,168,76,0.5); text-align:center;
+}
+
+/* Detected badge */
+#detected-badge {
+  position:absolute; top:calc(var(--safe-top) + 64px); left:50%; transform:translateX(-50%);
+  z-index:53; pointer-events:none;
+  display:flex; align-items:center; gap:0.5rem;
+  background:rgba(8,8,8,0.9); border:1px solid rgba(201,168,76,0.5);
+  padding:0.45rem 1.2rem;
+  font-family:'DM Mono'; font-size:0.6rem; letter-spacing:0.15em; text-transform:uppercase;
+  color:var(--gold); white-space:nowrap;
+  opacity:0; transition:opacity 0.5s ease;
+}
+#detected-badge.show { opacity:1; }
+#detected-badge::before {
+  content:''; width:5px; height:5px; border-radius:50%;
+  background:var(--gold); box-shadow:0 0 6px var(--gold);
+}
+
+/* Bottom zone panel */
+#zone-panel {
+  position:absolute; bottom:0; left:0; right:0; z-index:52;
+  pointer-events:all;
+  padding:0 1rem calc(var(--safe-bot) + 1rem);
+  background:linear-gradient(0deg, rgba(8,8,8,0.98) 0%, rgba(8,8,8,0.7) 60%, transparent 100%);
+  padding-top:5rem;
+  transform:translateY(100%); transition:transform 0.5s cubic-bezier(0.32,0.72,0,1);
+}
+#zone-panel.show { transform:translateY(0); }
+
+.zp-title {
+  font-family:'Cormorant Garamond'; font-style:italic; font-weight:300;
+  font-size:1.4rem; color:var(--white); margin-bottom:1rem;
+  padding:0 0.2rem;
+}
+.zp-title span {
+  display:block; font-family:'DM Mono'; font-style:normal;
+  font-size:0.55rem; letter-spacing:0.2em; text-transform:uppercase;
+  color:var(--gold); margin-bottom:0.3rem;
+}
+
+/* Horizontal zone tabs */
+.zone-tabs {
+  display:flex; gap:0.5rem; overflow-x:auto; padding-bottom:0.8rem;
+  scrollbar-width:none; -webkit-overflow-scrolling:touch;
+  margin:0 -1rem; padding:0 1rem 0.8rem;
+}
+.zone-tabs::-webkit-scrollbar { display:none; }
+
+.ztab {
+  flex-shrink:0;
+  padding:0.7rem 1rem; cursor:pointer;
+  border:1px solid rgba(201,168,76,0.15);
+  background:rgba(8,8,8,0.8);
+  display:flex; flex-direction:column; gap:2px;
+  transition:all 0.25s ease; min-width:80px;
+}
+.ztab.active { border-color:var(--gold); background:rgba(201,168,76,0.07); }
+.ztab-icon { font-size:1.2rem; }
+.ztab-name {
+  font-family:'DM Mono'; font-size:0.52rem; letter-spacing:0.1em; text-transform:uppercase;
+  color:var(--muted);
+}
+.ztab.active .ztab-name { color:var(--gold); }
+
+/* Exercise cards horizontal */
+.ex-row {
+  display:flex; gap:0.6rem; overflow-x:auto; margin:0.8rem -1rem 0.8rem;
+  padding:0 1rem; scrollbar-width:none; -webkit-overflow-scrolling:touch;
+}
+.ex-row::-webkit-scrollbar { display:none; }
+
+.ex-card {
+  flex-shrink:0; width:190px;
+  border:1px solid rgba(201,168,76,0.12);
+  background:rgba(8,8,8,0.9); padding:1rem;
+  cursor:pointer; transition:all 0.25s ease; position:relative; overflow:hidden;
+}
+.ex-card::after {
+  content:''; position:absolute; top:0; left:0; right:0; height:1px;
+  background:linear-gradient(90deg,transparent,var(--gold),transparent);
+  opacity:0; transition:opacity 0.25s;
+}
+.ex-card.active { border-color:var(--gold); }
+.ex-card.active::after { opacity:1; }
+.ec-n {
+  font-family:'Cormorant Garamond'; font-size:1.8rem; font-weight:300;
+  color:rgba(201,168,76,0.18); line-height:1; margin-bottom:0.4rem;
+}
+.ec-name {
+  font-family:'Rajdhani'; font-weight:600; font-size:0.88rem;
+  letter-spacing:0.05em; color:var(--white); margin-bottom:0.3rem;
+}
+.ec-desc { font-size:0.75rem; line-height:1.5; color:var(--muted); }
+.ec-tags { display:flex; gap:0.35rem; margin-top:0.6rem; flex-wrap:wrap; }
+.ec-tag {
+  font-family:'DM Mono'; font-size:0.5rem; letter-spacing:0.08em; text-transform:uppercase;
+  padding:0.2rem 0.45rem; border:1px solid rgba(201,168,76,0.2); color:var(--gold);
+}
+
+/* Bottom actions */
+.ar-actions {
+  display:flex; gap:0.6rem; margin-top:0.6rem;
+}
+.ar-btn {
+  flex:1; padding:0.8rem; border:1px solid var(--border); background:transparent;
+  color:var(--muted); font-family:'Rajdhani'; font-weight:600; font-size:0.78rem;
+  letter-spacing:0.15em; text-transform:uppercase; cursor:pointer; transition:all 0.25s;
+}
+.ar-btn.gold {
+  background:rgba(201,168,76,0.1); border-color:var(--gold); color:var(--gold-lt);
+}
+.ar-btn:active { opacity:0.7; }
+
+/* Timer display */
+#ar-timer {
+  position:absolute; top:calc(var(--safe-top) + 64px); right:1rem;
+  z-index:53; pointer-events:all;
+  font-family:'Cormorant Garamond'; font-size:2rem; font-weight:300;
+  color:var(--gold); letter-spacing:0.04em; text-align:right;
+  display:none;
+}
+#ar-timer.show { display:block; }
+
+/* ══════════════════════════════════
+   SCREEN 4 — EXERCISE DETAIL
+══════════════════════════════════ */
+#screen-exercise {
+  background:var(--black);
+  display:flex; flex-direction:column;
+  padding:calc(var(--safe-top) + 1rem) 1.5rem calc(var(--safe-bot) + 1.5rem);
+  overflow-y:auto;
+}
+
+.ex-detail-nav {
+  display:flex; align-items:center; justify-content:space-between; margin-bottom:2.5rem;
+}
+.ex-back {
+  font-family:'DM Mono'; font-size:0.6rem; letter-spacing:0.15em; text-transform:uppercase;
+  color:var(--muted); background:none; border:none; cursor:pointer; display:flex; align-items:center; gap:0.4rem;
+}
+.ex-zone-badge {
+  font-family:'DM Mono'; font-size:0.55rem; letter-spacing:0.12em; text-transform:uppercase;
+  padding:0.3rem 0.7rem; border:1px solid var(--border); color:var(--gold);
+}
+
+/* Stickman animation stage */
+.ex-stage {
+  height:220px; position:relative; display:flex; align-items:center; justify-content:center;
+  background:radial-gradient(ellipse 60% 60% at 50% 50%, rgba(201,168,76,0.04) 0%, transparent 70%);
+  border:1px solid var(--border); margin-bottom:1.5rem;
+  overflow:hidden;
+}
+.ex-stage::before {
+  content:''; position:absolute; bottom:0; left:0; right:0; height:1px;
+  background:linear-gradient(90deg,transparent,var(--gold),transparent); opacity:0.3;
+}
+
+/* SVG Stickman CSS animations */
+.stickman-svg { filter:drop-shadow(0 0 12px rgba(201,168,76,0.4)); }
+.stickman-svg circle { fill:none; stroke:var(--gold); stroke-width:2.5; stroke-linecap:round; }
+.stickman-svg line  { stroke:var(--gold); stroke-width:2.5; stroke-linecap:round; }
+
+/* Animation breathing (yoga) */
+@keyframes bodyBreathe { 0%,100%{transform:scaleY(1)} 50%{transform:scaleY(1.04)} }
+@keyframes armOpen     { 0%,100%{transform:rotate(-40deg)} 50%{transform:rotate(-50deg)} }
+@keyframes armOpenR    { 0%,100%{transform:rotate(40deg)}  50%{transform:rotate(50deg)} }
+@keyframes floatUp     { 0%,100%{transform:translateY(0)}  50%{transform:translateY(-8px)} }
+/* Running */
+@keyframes legFwd  { 0%,100%{transform:rotate(35deg)}  50%{transform:rotate(-35deg)} }
+@keyframes legBck  { 0%,100%{transform:rotate(-35deg)} 50%{transform:rotate(35deg)} }
+@keyframes armFwd  { 0%,100%{transform:rotate(-40deg)} 50%{transform:rotate(40deg)} }
+@keyframes armBck  { 0%,100%{transform:rotate(40deg)}  50%{transform:rotate(-40deg)} }
+/* Squat */
+@keyframes squatMove { 0%,100%{transform:translateY(0)}    40%,60%{transform:translateY(18px)} }
+@keyframes kneeOut   { 0%,100%{transform:rotate(12deg)}    40%,60%{transform:rotate(40deg)} }
+@keyframes kneeIn    { 0%,100%{transform:rotate(-12deg)}   40%,60%{transform:rotate(-40deg)} }
+@keyframes armsOut   { 0%,100%{transform:rotate(-45deg)}   40%,60%{transform:rotate(-20deg)} }
+@keyframes armsOutR  { 0%,100%{transform:rotate(45deg)}    40%,60%{transform:rotate(20deg)} }
+/* Jumping jack */
+@keyframes jackBody { 0%,100%{transform:translateY(0)}  50%{transform:translateY(-14px)} }
+@keyframes jackArmL { 0%,100%{transform:rotate(-40deg)} 50%{transform:rotate(-100deg)} }
+@keyframes jackArmR { 0%,100%{transform:rotate(40deg)}  50%{transform:rotate(100deg)} }
+@keyframes jackLegL { 0%,100%{transform:rotate(10deg)}  50%{transform:rotate(35deg)} }
+@keyndef jackLegR { 0%,100%{transform:rotate(-10deg)} 50%{transform:rotate(-35deg)} }
+/* Stretch */
+@keyframes strArmL { 0%,100%{transform:rotate(-50deg)} 50%{transform:rotate(-85deg)} }
+@keyframes strArmR { 0%,100%{transform:rotate(50deg)}  50%{transform:rotate(85deg)} }
+@keyframes strLegL { 0%,100%{transform:rotate(15deg)}  50%{transform:rotate(38deg)} }
+@keyframes strLegR { 0%,100%{transform:rotate(-15deg)} 50%{transform:rotate(-38deg)} }
+
+.ex-name-big {
+  font-family:'Cormorant Garamond'; font-style:italic; font-weight:300;
+  font-size:clamp(2rem,5vw,3rem); color:var(--white); line-height:1;
+  margin-bottom:0.4rem;
+}
+.ex-meta-row {
+  display:flex; align-items:center; gap:1rem; margin-bottom:1.5rem;
+  font-family:'DM Mono'; font-size:0.6rem; letter-spacing:0.12em; text-transform:uppercase;
+  color:var(--gold);
+}
+.ex-meta-row span { color:var(--muted); }
+
+.ex-desc-full {
+  font-family:'Cormorant Garamond'; font-size:1rem; line-height:1.8;
+  color:var(--muted); margin-bottom:1.5rem;
+}
+
+/* Progress indicators */
+.ex-indicators { display:flex; flex-direction:column; gap:0.6rem; margin-bottom:2rem; }
+.ei-row { display:flex; align-items:center; gap:0.8rem; }
+.ei-label { font-family:'DM Mono'; font-size:0.55rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); width:60px; }
+.ei-track { flex:1; height:2px; background:rgba(255,255,255,0.06); }
+.ei-fill { height:100%; background:linear-gradient(90deg,var(--gold-dk),var(--gold-lt)); transition:width 1s ease; }
+.ei-val { font-family:'DM Mono'; font-size:0.55rem; color:var(--gold); width:28px; text-align:right; }
+
+/* Reps / Timer controls */
+.ex-controls {
+  border:1px solid var(--border); padding:1.2rem; margin-bottom:1.5rem;
+  display:flex; gap:1.5rem; align-items:center;
+}
+.ctrl-item { display:flex; flex-direction:column; gap:0.3rem; flex:1; }
+.ctrl-label { font-family:'DM Mono'; font-size:0.5rem; letter-spacing:0.15em; text-transform:uppercase; color:var(--muted); }
+.ctrl-val {
+  font-family:'Cormorant Garamond'; font-size:2.2rem; font-weight:300; color:var(--gold);
+  line-height:1; letter-spacing:-0.01em;
+}
+.ctrl-btns { display:flex; gap:0.4rem; }
+.ctrl-btn {
+  width:32px; height:32px; border:1px solid var(--border); background:transparent;
+  color:var(--gold-lt); font-size:1.1rem; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  transition:all 0.2s;
+}
+.ctrl-btn:active { background:rgba(201,168,76,0.15); }
+
+.start-ex-btn {
+  width:100%; padding:1.1rem; border:1px solid var(--gold); background:transparent;
+  color:var(--gold-lt); font-family:'Rajdhani'; font-weight:700; font-size:0.9rem;
+  letter-spacing:0.22em; text-transform:uppercase; cursor:pointer;
+  position:relative; overflow:hidden; transition:all 0.3s;
+}
+.start-ex-btn::before {
+  content:''; position:absolute; inset:0; background:var(--gold);
+  transform:translateX(-101%); transition:transform 0.3s;
+}
+.start-ex-btn:active::before { transform:translateX(0); }
+.start-ex-btn span { position:relative; z-index:1; }
+.start-ex-btn:active span { color:var(--black); }
+
+/* ══ TOAST ══ */
+#toast {
+  position:fixed; bottom:calc(var(--safe-bot) + 5rem); left:50%;
+  transform:translateX(-50%) translateY(10px);
+  z-index:9997; pointer-events:none;
+  background:rgba(8,8,8,0.95); border:1px solid var(--gold);
+  padding:0.7rem 1.6rem;
+  font-family:'Rajdhani'; font-weight:500; font-size:0.82rem;
+  letter-spacing:0.12em; text-transform:uppercase; color:var(--gold-lt);
+  opacity:0; transition:all 0.3s ease; white-space:nowrap;
+}
+#toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+</style>
+
+</head>
+<body>
+
+<!-- ════════════════════════════════════
+     SCREEN 1 · SPLASH
+════════════════════════════════════ -->
+
+<div id="screen-splash" class="screen">
+  <!-- Ornement stickman -->
+  <div class="splash-ornament">
+    <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="40" cy="40" r="38" stroke="#C9A84C" stroke-width="1" stroke-opacity="0.2"/>
+      <circle cx="40" cy="40" r="28" stroke="#C9A84C" stroke-width="0.5" stroke-opacity="0.15"/>
+      <!-- Stickman -->
+      <circle cx="40" cy="20" r="7" stroke="#C9A84C" stroke-width="2"/>
+      <line x1="40" y1="27" x2="40" y2="46" stroke="#C9A84C" stroke-width="2"/>
+      <line x1="40" y1="33" x2="28" y2="41" stroke="#C9A84C" stroke-width="2"/>
+      <line x1="40" y1="33" x2="52" y2="41" stroke="#C9A84C" stroke-width="2"/>
+      <line x1="40" y1="46" x2="32" y2="60" stroke="#C9A84C" stroke-width="2"/>
+      <line x1="40" y1="46" x2="48" y2="60" stroke="#C9A84C" stroke-width="2"/>
+      <!-- Glow dot -->
+      <circle cx="40" cy="20" r="3" fill="#C9A84C" fill-opacity="0.4"/>
+    </svg>
+  </div>
+
+  <h1 class="splash-title">
+    Tonic
+    <em>Carpet</em>
+  </h1>
+  <div class="splash-rule"></div>
+  <p class="splash-sub">Votre tapis de gymnaste devient votre coach. Six disciplines. Un seul geste.</p>
+
+<button class="splash-btn" onclick="goToMarker()"><span>Commencer</span></button>
+
+  <div class="splash-install-hint">
+    Sur iPad · Appuyez sur ⎙ puis "Sur l'écran d'accueil"
+  </div>
+</div>
+
+<!-- ════════════════════════════════════
+     SCREEN 2 · MARQUEUR
+════════════════════════════════════ -->
+
+<div id="screen-marker" class="screen hidden">
+  <div class="marker-nav">
+    <button class="marker-nav-back" onclick="goTo('screen-splash')">← Retour</button>
+    <div class="marker-nav-step">Étape 1 / 2</div>
+  </div>
+
+  <div class="marker-title">Votre marqueur</div>
+  <div class="marker-sub">Tonic Carpet · Clé de reconnaissance</div>
+
+  <!-- MARQUEUR TONIC CARPET CUSTOM -->
+
+  <div class="marker-card">
+    <div class="marker-label-top">TONIC CARPET · MARQUEUR AR</div>
+    <!-- SVG marqueur custom haute-contraste -->
+    <div class="tonic-marker">
+      <svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+        <!-- Fond blanc -->
+        <rect width="200" height="200" fill="white"/>
+        <!-- Bordure noire extérieure -->
+        <rect x="5" y="5" width="190" height="190" fill="black"/>
+        <!-- Zone blanche intérieure -->
+        <rect x="15" y="15" width="170" height="170" fill="white"/>
+
+```
+    <!-- Coins QR-like (carrés de synchronisation ARKit) -->
+    <!-- Coin haut-gauche -->
+    <rect x="20" y="20" width="40" height="40" fill="black"/>
+    <rect x="26" y="26" width="28" height="28" fill="white"/>
+    <rect x="31" y="31" width="18" height="18" fill="black"/>
+
+    <!-- Coin haut-droit -->
+    <rect x="140" y="20" width="40" height="40" fill="black"/>
+    <rect x="146" y="26" width="28" height="28" fill="white"/>
+    <rect x="151" y="31" width="18" height="18" fill="black"/>
+
+    <!-- Coin bas-gauche -->
+    <rect x="20" y="140" width="40" height="40" fill="black"/>
+    <rect x="26" y="146" width="28" height="28" fill="white"/>
+    <rect x="31" y="151" width="18" height="18" fill="black"/>
+
+    <!-- Pattern central unique Tonic Carpet (stickman) -->
+    <!-- Tête -->
+    <circle cx="100" cy="72" r="10" fill="black"/>
+    <circle cx="100" cy="72" r="5"  fill="white"/>
+    <!-- Corps -->
+    <rect x="97" y="82" width="6" height="26" fill="black"/>
+    <!-- Bras gauche -->
+    <rect x="72" y="92" width="28" height="5" fill="black" transform="rotate(-20 72 92)"/>
+    <!-- Bras droit -->
+    <rect x="100" y="92" width="28" height="5" fill="black" transform="rotate(20 100 92)"/>
+    <!-- Jambe gauche -->
+    <rect x="96" y="108" width="5" height="28" fill="black" transform="rotate(-12 96 108)"/>
+    <!-- Jambe droite -->
+    <rect x="99" y="108" width="5" height="28" fill="black" transform="rotate(12 99 108)"/>
+
+    <!-- Données pattern AR pour unicité (lignes de bits) -->
+    <rect x="70" y="25" width="6" height="6" fill="black"/>
+    <rect x="82" y="25" width="6" height="6" fill="black"/>
+    <rect x="94" y="25" width="6" height="6" fill="black"/>
+    <rect x="112" y="25" width="6" height="6" fill="black"/>
+    <rect x="124" y="25" width="6" height="6" fill="black"/>
+
+    <rect x="25" y="70" width="6" height="6" fill="black"/>
+    <rect x="25" y="82" width="6" height="6" fill="black"/>
+    <rect x="25" y="100" width="6" height="6" fill="black"/>
+    <rect x="25" y="118" width="6" height="6" fill="black"/>
+
+    <rect x="169" y="70" width="6" height="6" fill="black"/>
+    <rect x="169" y="88" width="6" height="6" fill="black"/>
+    <rect x="169" y="106" width="6" height="6" fill="black"/>
+    <rect x="169" y="124" width="6" height="6" fill="black"/>
+
+    <rect x="70" y="169" width="6" height="6" fill="black"/>
+    <rect x="88" y="169" width="6" height="6" fill="black"/>
+    <rect x="106" y="169" width="6" height="6" fill="black"/>
+    <rect x="124" y="169" width="6" height="6" fill="black"/>
+
+    <!-- Micro texte bas -->
+    <text x="100" y="155" text-anchor="middle" font-family="monospace" font-size="7" fill="black" opacity="0.6">MACADAM · TONIC</text>
+  </svg>
+</div>
+<div class="marker-label-bot">Imprimez ce marqueur<br>Format recommandé : 15×15 cm</div>
+```
+
+  </div>
+
+  <div class="marker-steps">
+    <div class="ms-step">
+      <div class="ms-n">1</div>
+      <div class="ms-text"><strong>Imprimez</strong> ce marqueur en format A5 minimum, ou affichez-le sur un second écran.</div>
+    </div>
+    <div class="ms-step">
+      <div class="ms-n">2</div>
+      <div class="ms-text"><strong>Posez-le</strong> sur votre tapis Tonic Carpet ou sur le sol devant vous, bien à plat.</div>
+    </div>
+    <div class="ms-step">
+      <div class="ms-n">3</div>
+      <div class="ms-text"><strong>Pointez</strong> la caméra de l'iPad vers le marqueur — les personnages apparaissent automatiquement.</div>
+    </div>
+  </div>
+
+<button class="marker-cta" onclick="goToAR()"><span>Ouvrir la caméra AR →</span></button>
+
+</div>
+
+<!-- ════════════════════════════════════
+     SCREEN 3 · AR CAMÉRA
+════════════════════════════════════ -->
+
+<div id="screen-ar" class="screen hidden">
+
+  <!-- A-Frame Scene -->
+
+<a-scene
+id=“ar-scene”
+embedded
+arjs=“sourceType:webcam; debugUIEnabled:false; detectionMode:mono_and_matrix; matrixCodeType:3x3;”
+renderer=“logarithmicDepthBuffer:true; antialias:true; alpha:true;”
+vr-mode-ui=“enabled:false”
+
+```
+<!-- MARQUEUR HIRO (standard AR.js — correspond au marqueur imprimé) -->
+<a-marker preset="hiro" id="main-marker" smooth="true" smoothCount="8" smoothTolerance="0.01">
+
+  <!-- Sol / tapis virtuel -->
+  <a-plane rotation="-90 0 0" width="1.2" height="2"
+    material="color:#080808; opacity:0.3; transparent:true; side:double"
+    position="0 0.001 0">
+  </a-plane>
+
+  <!-- Cercle doré au sol -->
+  <a-ring radius-inner="0.12" radius-outer="0.14" color="#C9A84C"
+    material="opacity:0.5; transparent:true"
+    rotation="-90 0 0" position="0 0.002 0">
+  </a-ring>
+  <a-ring radius-inner="0.22" radius-outer="0.235" color="#C9A84C"
+    material="opacity:0.2; transparent:true"
+    rotation="-90 0 0" position="0 0.002 0">
+  </a-ring>
+
+  <!-- ════ ZONE YOGA — haut ════ -->
+  <a-entity id="zone-yoga" position="0 0 -0.32" visible="true">
+    <!-- Aura dorée -->
+    <a-cylinder height="0.003" radius="0.1"
+      material="color:#C9A84C; opacity:0.15; transparent:true"
+      animation="property:material.opacity; from:0.08; to:0.22; dur:2000; dir:alternate; loop:true">
+    </a-cylinder>
+    <!-- Tête -->
+    <a-sphere radius="0.04" color="#C9A84C"
+      material="metalness:0.8; roughness:0.2; emissive:#3a2800; emissiveIntensity:0.3"
+      position="0 0.26 0"
+      animation="property:position; from:0 0.26 0; to:0 0.27 0; dur:2500; dir:alternate; loop:true; easing:easeInOutSine">
+    </a-sphere>
+    <!-- Corps -->
+    <a-cylinder height="0.16" radius="0.012" color="#C9A84C"
+      material="metalness:0.8; roughness:0.2"
+      position="0 0.15 0"
+      animation="property:scale; from:1 1 1; to:1 1.04 1; dur:2500; dir:alternate; loop:true">
+    </a-cylinder>
+    <!-- Bras G méditation -->
+    <a-cylinder height="0.12" radius="0.009" color="#C9A84C"
+      material="metalness:0.8; roughness:0.2"
+      position="-0.07 0.18 0" rotation="0 0 -48"
+      animation="property:rotation; from:0 0 -45; to:0 0 -55; dur:2500; dir:alternate; loop:true">
+    </a-cylinder>
+    <!-- Bras D méditation -->
+    <a-cylinder height="0.12" radius="0.009" color="#C9A84C"
+      material="metalness:0.8; roughness:0.2"
+      position="0.07 0.18 0" rotation="0 0 48"
+      animation="property:rotation; from:0 0 45; to:0 0 55; dur:2500; dir:alternate; loop:true">
+    </a-cylinder>
+    <!-- Jambe G croisée -->
+    <a-cylinder height="0.1" radius="0.009" color="#C9A84C"
+      material="metalness:0.8; roughness:0.2"
+      position="-0.045 0.05 0" rotation="0 0 22">
+    </a-cylinder>
+    <!-- Jambe D croisée -->
+    <a-cylinder height="0.1" radius="0.009" color="#C9A84C"
+      material="metalness:0.8; roughness:0.2"
+      position="0.045 0.05 0" rotation="0 0 -22">
+    </a-cylinder>
+    <!-- Label -->
+    <a-text value="YOGA" align="center" color="#C9A84C"
+      position="0 0.36 0" scale="0.2 0.2 0.2"
+      animation="property:position; from:0 0.36 0; to:0 0.38 0; dur:2500; dir:alternate; loop:true">
+    </a-text>
+  </a-entity>
+
+  <!-- ════ ZONE CARDIO — milieu gauche ════ -->
+  <a-entity id="zone-cardio" position="-0.14 0 -0.1" visible="true">
+    <a-cylinder height="0.003" radius="0.09"
+      material="color:#E8C97A; opacity:0.12; transparent:true" position="0 0 0">
+    </a-cylinder>
+    <a-sphere radius="0.035" color="#E8C97A"
+      material="metalness:0.8; roughness:0.2"
+      position="0 0.22 0"
+      animation="property:rotation; from:-8 0 0; to:8 0 0; dur:350; dir:alternate; loop:true; easing:linear">
+    </a-sphere>
+    <a-cylinder height="0.14" radius="0.011" color="#E8C97A"
+      material="metalness:0.8; roughness:0.2"
+      position="0 0.12 0"
+      animation="property:rotation; from:-6 0 0; to:6 0 0; dur:350; dir:alternate; loop:true">
+    </a-cylinder>
+    <!-- Bras courant -->
+    <a-cylinder height="0.1" radius="0.008" color="#E8C97A"
+      position="-0.06 0.16 0" rotation="0 0 -35"
+      animation="property:rotation; from:30 0 -35; to:-30 0 -35; dur:350; dir:alternate; loop:true">
+    </a-cylinder>
+    <a-cylinder height="0.1" radius="0.008" color="#E8C97A"
+      position="0.06 0.16 0" rotation="0 0 35"
+      animation="property:rotation; from:-30 0 35; to:30 0 35; dur:350; dir:alternate; loop:true">
+    </a-cylinder>
+    <!-- Jambes -->
+    <a-cylinder height="0.13" radius="0.01" color="#E8C97A"
+      position="-0.03 0.02 0"
+      animation="property:rotation; from:38 0 8; to:-38 0 8; dur:350; dir:alternate; loop:true; easing:linear">
+    </a-cylinder>
+    <a-cylinder height="0.13" radius="0.01" color="#E8C97A"
+      position="0.03 0.02 0"
+      animation="property:rotation; from:-38 0 -8; to:38 0 -8; dur:350; dir:alternate; loop:true; easing:linear">
+    </a-cylinder>
+    <a-text value="CARDIO" align="center" color="#E8C97A"
+      position="0 0.32 0" scale="0.17 0.17 0.17">
+    </a-text>
+  </a-entity>
+
+  <!-- ════ ZONE SANTÉ — milieu droit ════ -->
+  <a-entity id="zone-heart" position="0.14 0 -0.1" visible="true">
+    <a-cylinder height="0.003" radius="0.09"
+      material="color:#C9A84C; opacity:0.1; transparent:true" position="0 0 0">
+    </a-cylinder>
+    <a-sphere radius="0.033" color="#C9A84C"
+      material="metalness:0.8; roughness:0.2" position="0 0.21 0">
+    </a-sphere>
+    <a-cylinder height="0.14" radius="0.01" color="#C9A84C"
+      material="metalness:0.8; roughness:0.2" position="0 0.11 0">
+    </a-cylinder>
+    <a-cylinder height="0.1" radius="0.008" color="#C9A84C"
+      position="-0.055 0.155 0" rotation="0 0 -28"
+      animation="property:rotation; from:18 0 -28; to:-18 0 -28; dur:700; dir:alternate; loop:true">
+    </a-cylinder>
+    <a-cylinder height="0.1" radius="0.008" color="#C9A84C"
+      position="0.055 0.155 0" rotation="0 0 28"
+      animation="property:rotation; from:-18 0 28; to:18 0 28; dur:700; dir:alternate; loop:true">
+    </a-cylinder>
+    <a-cylinder height="0.12" radius="0.01" color="#C9A84C"
+      position="-0.025 0.02 0"
+      animation="property:rotation; from:22 0 5; to:-22 0 5; dur:700; dir:alternate; loop:true">
+    </a-cylinder>
+    <a-cylinder height="0.12" radius="0.01" color="#C9A84C"
+      position="0.025 0.02 0"
+      animation="property:rotation; from:-22 0 -5; to:22 0 -5; dur:700; dir:alternate; loop:true">
+    </a-cylinder>
+    <a-text value="SANTÉ" align="center" color="#C9A84C"
+      position="0 0.30 0" scale="0.17 0.17 0.17">
+    </a-text>
+  </a-entity>
+
+  <!-- ════ ZONE FORCE — bas gauche ════ -->
+  <a-entity id="zone-strength" position="-0.14 0 0.1" visible="true">
+    <a-cylinder height="0.003" radius="0.09"
+      material="color:#C9A84C; opacity:0.12; transparent:true" position="0 0 0">
+    </a-cylinder>
+    <!-- Squat animation -->
+    <a-sphere radius="0.033" color="#C9A84C"
+      material="metalness:0.8; roughness:0.2"
+      position="0 0.19 0"
+      animation="property:position; from:0 0.19 0; to:0 0.14 0; dur:900; dir:alternate; loop:true; easing:easeInOutSine">
+    </a-sphere>
+    <a-cylinder height="0.12" radius="0.01" color="#C9A84C"
+      material="metalness:0.8; roughness:0.2"
+      position="0 0.1 0"
+      animation="property:position; from:0 0.1 0; to:0 0.07 0; dur:900; dir:alternate; loop:true">
+    </a-cylinder>
+    <a-cylinder height="0.1" radius="0.008" color="#C9A84C"
+      position="-0.06 0.135 0" rotation="0 0 -42"
+      animation="property:rotation; from:0 0 -42; to:0 0 -20; dur:900; dir:alternate; loop:true">
+    </a-cylinder>
+    <a-cylinder height="0.1" radius="0.008" color="#C9A84C"
+      position="0.06 0.135 0" rotation="0 0 42"
+      animation="property:rotation; from:0 0 42; to:0 0 20; dur:900; dir:alternate; loop:true">
+    </a-cylinder>
+    <a-cylinder height="0.11" radius="0.01" color="#C9A84C"
+      position="-0.03 0.02 0" rotation="0 0 12"
+      animation="property:rotation; from:0 0 12; to:0 0 40; dur:900; dir:alternate; loop:true">
+    </a-cylinder>
+    <a-cylinder height="0.11" radius="0.01" color="#C9A84C"
+      position="0.03 0.02 0" rotation="0 0 -12"
+      animation="property:rotation; from:0 0 -12; to:0 0 -40; dur:900; dir:alternate; loop:true">
+    </a-cylinder>
+    <a-text value="SQUAT" align="center" color="#C9A84C"
+      position="0 0.30 0" scale="0.17 0.17 0.17">
+    </a-text>
+  </a-entity>
+
+  <!-- ════ ZONE STRETCH — bas droit ════ -->
+  <a-entity id="zone-stretch" position="0.14 0 0.1" visible="true">
+    <a-cylinder height="0.003" radius="0.09"
+      material="color:#C9A84C; opacity:0.1; transparent:true" position="0 0 0">
+    </a-cylinder>
+    <a-sphere radius="0.032" color="#C9A84C"
+      material="metalness:0.8; roughness:0.2" position="0 0.21 0"
+      animation="property:position; from:0 0.21 0; to:0 0.215 0; dur:1500; dir:alternate; loop:true">
+    </a-sphere>
+    <a-cylinder height="0.13" radius="0.01" color="#C9A84C"
+      material="metalness:0.8; roughness:0.2" position="0 0.115 0">
+    </a-cylinder>
+    <a-cylinder height="0.12" radius="0.008" color="#C9A84C"
+      position="-0.08 0.165 0" rotation="0 0 -58"
+      animation="property:rotation; from:0 0 -52; to:0 0 -78; dur:1500; dir:alternate; loop:true; easing:easeInOutSine">
+    </a-cylinder>
+    <a-cylinder height="0.12" radius="0.008" color="#C9A84C"
+      position="0.08 0.165 0" rotation="0 0 58"
+      animation="property:rotation; from:0 0 52; to:0 0 78; dur:1500; dir:alternate; loop:true; easing:easeInOutSine">
+    </a-cylinder>
+    <a-cylinder height="0.12" radius="0.01" color="#C9A84C"
+      position="-0.04 0.02 0" rotation="0 0 18"
+      animation="property:rotation; from:0 0 18; to:0 0 42; dur:1500; dir:alternate; loop:true">
+    </a-cylinder>
+    <a-cylinder height="0.12" radius="0.01" color="#C9A84C"
+      position="0.04 0.02 0" rotation="0 0 -18"
+      animation="property:rotation; from:0 0 -18; to:0 0 -42; dur:1500; dir:alternate; loop:true">
+    </a-cylinder>
+    <a-text value="STRETCH" align="center" color="#C9A84C"
+      position="0 0.30 0" scale="0.17 0.17 0.17">
+    </a-text>
+  </a-entity>
+
+  <!-- ════ ZONE NOUVEAU — bas centre ════ -->
+  <a-entity id="zone-new" position="0 0 0.3" visible="true">
+    <a-cylinder height="0.003" radius="0.1"
+      material="color:#E8C97A; opacity:0.15; transparent:true" position="0 0 0"
+      animation="property:scale; from:1 1 1; to:1.15 1 1.15; dur:400; dir:alternate; loop:true">
+    </a-cylinder>
+    <a-sphere radius="0.034" color="#E8C97A"
+      material="metalness:0.8; roughness:0.2"
+      position="0 0.23 0"
+      animation="property:position; from:0 0.23 0; to:0 0.27 0; dur:400; dir:alternate; loop:true; easing:easeInOutSine">
+    </a-sphere>
+    <a-cylinder height="0.14" radius="0.011" color="#E8C97A"
+      material="metalness:0.8; roughness:0.2"
+      position="0 0.14 0"
+      animation="property:position; from:0 0.14 0; to:0 0.17 0; dur:400; dir:alternate; loop:true">
+    </a-cylinder>
+    <a-cylinder height="0.11" radius="0.008" color="#E8C97A"
+      position="-0.07 0.2 0" rotation="0 0 -42"
+      animation="property:rotation; from:0 0 -32; to:0 0 -85; dur:400; dir:alternate; loop:true">
+    </a-cylinder>
+    <a-cylinder height="0.11" radius="0.008" color="#E8C97A"
+      position="0.07 0.2 0" rotation="0 0 42"
+      animation="property:rotation; from:0 0 32; to:0 0 85; dur:400; dir:alternate; loop:true">
+    </a-cylinder>
+    <a-cylinder height="0.12" radius="0.01" color="#E8C97A"
+      position="-0.04 0.04 0" rotation="0 0 12"
+      animation="property:rotation; from:0 0 10; to:0 0 38; dur:400; dir:alternate; loop:true">
+    </a-cylinder>
+    <a-cylinder height="0.12" radius="0.01" color="#E8C97A"
+      position="0.04 0.04 0" rotation="0 0 -12"
+      animation="property:rotation; from:0 0 -10; to:0 0 -38; dur:400; dir:alternate; loop:true">
+    </a-cylinder>
+    <a-text value="NOUVEAU" align="center" color="#E8C97A"
+      position="0 0.36 0" scale="0.17 0.17 0.17"
+      animation="property:position; from:0 0.36 0; to:0 0.39 0; dur:400; dir:alternate; loop:true">
+    </a-text>
+  </a-entity>
+
+</a-marker>
+<a-entity camera></a-entity>
+```
+
+  </a-scene>
+
+  <!-- HUD AR -->
+
+  <div id="ar-hud">
+    <div class="hud-br tl" id="hb-tl"></div>
+    <div class="hud-br tr" id="hb-tr"></div>
+    <div class="hud-br bl" id="hb-bl"></div>
+    <div class="hud-br br" id="hb-br"></div>
+  </div>
+
+  <!-- Top bar -->
+
+  <div id="ar-topbar">
+    <button class="ar-back-btn" onclick="goTo('screen-marker')">← Marqueur</button>
+    <div class="ar-logo">Tonic <em>Carpet</em></div>
+    <div class="ar-status">
+      <div class="ar-dot" id="ar-dot"></div>
+      <span id="ar-status-txt" style="color:rgba(201,168,76,0.5)">Scan…</span>
+    </div>
+  </div>
+
+  <!-- Timer -->
+
+  <div id="ar-timer">00:00</div>
+
+  <!-- Detected badge -->
+
+  <div id="detected-badge">Tapis reconnu</div>
+
+  <!-- Scan prompt -->
+
+  <div id="scan-prompt">
+    <div class="sp-frame">
+      <div class="sp-corner tl"></div>
+      <div class="sp-corner tr"></div>
+      <div class="sp-corner bl"></div>
+      <div class="sp-corner br"></div>
+      <div class="sp-scan"></div>
+    </div>
+    <div class="sp-label">Pointez vers le marqueur</div>
+    <div class="sp-hint">Tonic Carpet · Clé de reconnaissance</div>
+  </div>
+
+  <!-- Zone panel -->
+
+  <div id="zone-panel">
+    <div class="zp-title">
+      <span id="zp-eyebrow">Zone active</span>
+      <span id="zp-name">Sélectionnez une zone</span>
+    </div>
+
+```
+<div class="zone-tabs" id="zone-tabs">
+  <div class="ztab active" onclick="selectZone('yoga',this)">
+    <div class="ztab-icon">🧘</div>
+    <div class="ztab-name">Yoga</div>
+  </div>
+  <div class="ztab" onclick="selectZone('cardio',this)">
+    <div class="ztab-icon">🏃</div>
+    <div class="ztab-name">Cardio</div>
+  </div>
+  <div class="ztab" onclick="selectZone('heart',this)">
+    <div class="ztab-icon">❤️</div>
+    <div class="ztab-name">Santé</div>
+  </div>
+  <div class="ztab" onclick="selectZone('strength',this)">
+    <div class="ztab-icon">💪</div>
+    <div class="ztab-name">Force</div>
+  </div>
+  <div class="ztab" onclick="selectZone('stretch',this)">
+    <div class="ztab-icon">🤸</div>
+    <div class="ztab-name">Stretch</div>
+  </div>
+  <div class="ztab" onclick="selectZone('new',this)">
+    <div class="ztab-icon">⚡</div>
+    <div class="ztab-name">Nouveau</div>
+  </div>
+</div>
+
+<div class="ex-row" id="ar-ex-row"></div>
+
+<div class="ar-actions">
+  <button class="ar-btn" id="ar-timer-btn" onclick="toggleARTimer()">▶ Timer</button>
+  <button class="ar-btn gold" onclick="openExercise()">Détail exercice →</button>
+</div>
+```
+
+  </div>
+</div>
+
+<!-- ════════════════════════════════════
+     SCREEN 4 · EXERCISE DETAIL
+════════════════════════════════════ -->
+
+<div id="screen-exercise" class="screen hidden">
+  <div class="ex-detail-nav">
+    <button class="ex-back" onclick="goTo('screen-ar')">
+      <span>←</span> Retour AR
+    </button>
+    <div class="ex-zone-badge" id="ex-zone-badge">Zone</div>
+  </div>
+
+  <!-- Stickman stage -->
+
+  <div class="ex-stage" id="ex-stage">
+    <svg id="ex-stickman" class="stickman-svg" width="120" height="180" viewBox="0 0 120 180">
+      <circle cx="60" cy="28" r="18"/>
+      <circle cx="60" cy="28" r="7" style="fill:rgba(201,168,76,0.25)"/>
+      <line id="sk-body" x1="60" y1="46" x2="60" y2="100"/>
+      <line id="sk-larm" x1="60" y1="62" x2="28" y2="82"/>
+      <line id="sk-rarm" x1="60" y1="62" x2="92" y2="82"/>
+      <line id="sk-lleg" x1="60" y1="100" x2="40" y2="145"/>
+      <line id="sk-rleg" x1="60" y1="100" x2="80" y2="145"/>
+      <line id="sk-lfoot" x1="40" y1="145" x2="28" y2="162"/>
+      <line id="sk-rfoot" x1="80" y1="145" x2="92" y2="162"/>
+      <!-- Aura -->
+      <ellipse cx="60" cy="168" rx="30" ry="5" style="stroke:rgba(201,168,76,0.15);stroke-width:1;fill:none"/>
+    </svg>
+  </div>
+
+  <div class="ex-name-big" id="ex-name-big">Lotus Assis</div>
+  <div class="ex-meta-row">
+    <span id="ex-meta-duration">8 MIN</span>
+    <span>·</span>
+    <span id="ex-meta-level">DÉBUTANT</span>
+    <span>·</span>
+    <span id="ex-meta-muscle">SOUPLESSE</span>
+  </div>
+  <p class="ex-desc-full" id="ex-desc-full">
+    Position lotus complète. Respirez en 4 temps d'inspiration, 4 de rétention, 8 d'expiration. Laissez le personnage AR guider votre posture.
+  </p>
+
+  <div class="ex-indicators">
+    <div class="ei-row">
+      <div class="ei-label">Calme</div>
+      <div class="ei-track"><div class="ei-fill" id="ei-calm" style="width:0%"></div></div>
+      <div class="ei-val" id="ev-calm">—</div>
+    </div>
+    <div class="ei-row">
+      <div class="ei-label">Cardio</div>
+      <div class="ei-track"><div class="ei-fill" id="ei-cardio" style="width:0%"></div></div>
+      <div class="ei-val" id="ev-cardio">—</div>
+    </div>
+    <div class="ei-row">
+      <div class="ei-label">Force</div>
+      <div class="ei-track"><div class="ei-fill" id="ei-force" style="width:0%"></div></div>
+      <div class="ei-val" id="ev-force">—</div>
+    </div>
+    <div class="ei-row">
+      <div class="ei-label">Souplesse</div>
+      <div class="ei-track"><div class="ei-fill" id="ei-flex" style="width:0%"></div></div>
+      <div class="ei-val" id="ev-flex">—</div>
+    </div>
+  </div>
+
+  <div class="ex-controls">
+    <div class="ctrl-item">
+      <div class="ctrl-label">Répétitions</div>
+      <div class="ctrl-val" id="ctrl-reps">12</div>
+      <div class="ctrl-btns">
+        <button class="ctrl-btn" onclick="changeVal('reps',-1)">−</button>
+        <button class="ctrl-btn" onclick="changeVal('reps',1)">+</button>
+      </div>
+    </div>
+    <div style="width:1px;background:var(--border)"></div>
+    <div class="ctrl-item">
+      <div class="ctrl-label">Séries</div>
+      <div class="ctrl-val" id="ctrl-sets">3</div>
+      <div class="ctrl-btns">
+        <button class="ctrl-btn" onclick="changeVal('sets',-1)">−</button>
+        <button class="ctrl-btn" onclick="changeVal('sets',1)">+</button>
+      </div>
+    </div>
+  </div>
+
+  <button class="start-ex-btn" onclick="goTo('screen-ar')">
+    <span>← Retour à l'AR</span>
+  </button>
+</div>
+
+<!-- Toast -->
+
+<div id="toast"></div>
+
+<!-- ════════════════════════════════════
+     JAVASCRIPT
+════════════════════════════════════ -->
+
+<script>
+// ══ DATA ══
+const ZONES = {
+  yoga:{
+    label:'Yoga · Méditation', eyebrow:'Zone 01',
+    calm:90, cardio:10, force:15, flex:80,
+    exercises:[
+      {n:'01',name:'Lotus Assis',     desc:'Position lotus, respiration 4-4-8 consciente',     dur:'8 MIN',  reps:null, level:'Débutant',     muscle:'Souplesse'},
+      {n:'02',name:'Guerrier I',      desc:'Bras levés, jambe avant à 90°, 30 secondes',        dur:'3×30S',  reps:null, level:'Intermédiaire',muscle:'Force'},
+      {n:'03',name:'Chien Tête en Bas',desc:'Colonne allongée, talons au sol, 5 respirations',  dur:'5 MIN',  reps:null, level:'Débutant',     muscle:'Étirement'}
+    ]
+  },
+  cardio:{
+    label:'Cardio · Course', eyebrow:'Zone 02',
+    calm:10, cardio:90, force:40, flex:25,
+    exercises:[
+      {n:'01',name:'Course en Place', desc:'60 foulées/min, genoux montants, bras actifs',      dur:'5 MIN',  reps:null, level:'Cardio',        muscle:'Full Body'},
+      {n:'02',name:'Burpee Complet',  desc:'Debout → planche → saut, 3 phases distinctes',      dur:null,     reps:10,   level:'Avancé',        muscle:'Full Body'},
+      {n:'03',name:'High Knees',      desc:'Genoux à hauteur de hanches, tempo soutenu',        dur:'45S',    reps:null, level:'Intermédiaire', muscle:'Jambes'}
+    ]
+  },
+  heart:{
+    label:'Cardio · Santé', eyebrow:'Zone 03',
+    calm:40, cardio:70, force:20, flex:35,
+    exercises:[
+      {n:'01',name:'Marche Active',   desc:'Zone cardiaque 65-75%, rythme cible maintenu',      dur:'20 MIN', reps:null, level:'Débutant',      muscle:'Cardio'},
+      {n:'02',name:'Step Touch',      desc:'Pas latéraux rythmés, faible impact articulaire',   dur:'10 MIN', reps:null, level:'Doux',           muscle:'Jambes'},
+      {n:'03',name:'Circuit Santé',   desc:'6 exercices bas-impact, monitoring continu',        dur:'30 MIN', reps:null, level:'Intermédiaire', muscle:'Full Body'}
+    ]
+  },
+  strength:{
+    label:'Renforcement · Squat', eyebrow:'Zone 04',
+    calm:20, cardio:40, force:90, flex:45,
+    exercises:[
+      {n:'01',name:'Squat Profond',   desc:'90° de flexion, dos droit, descente contrôlée',    dur:null,     reps:12,   level:'Débutant',      muscle:'Jambes'},
+      {n:'02',name:'Fente Avant',     desc:'Genou à 90°, alternance gauche/droite guidée',     dur:null,     reps:10,   level:'Intermédiaire', muscle:'Fessiers'},
+      {n:'03',name:'Goblet Squat',    desc:'Mains jointes, squat large, adducteurs actifs',    dur:null,     reps:15,   level:'Intermédiaire', muscle:'Force'}
+    ]
+  },
+  stretch:{
+    label:'Stretching', eyebrow:'Zone 05',
+    calm:60, cardio:10, force:15, flex:95,
+    exercises:[
+      {n:'01',name:'Grand Écart Lat.',desc:'Jambes écartées, inclinaison avant progressive',    dur:'3×30S',  reps:null, level:'Intermédiaire', muscle:'Hanches'},
+      {n:'02',name:'Étirement Ischio',desc:'Jambe tendue, amplitude guidée progressivement',   dur:'2×45S',  reps:null, level:'Débutant',      muscle:'Ischios'},
+      {n:'03',name:'Pigeon Yoga',     desc:'Hanche ouverte, récupération optimale',             dur:'2×60S',  reps:null, level:'Intermédiaire', muscle:'Hanche'}
+    ]
+  },
+  new:{
+    label:'Jumping Jack', eyebrow:'Zone 06',
+    calm:15, cardio:75, force:50, flex:30,
+    exercises:[
+      {n:'01',name:'Jumping Jack',    desc:'Écart synchronisé bras-jambes, décompte précis',   dur:null,     reps:50,   level:'Débutant',      muscle:'Full Body'},
+      {n:'02',name:'Star Jump',       desc:'Variante saut haut, réception souple contrôlée',   dur:null,     reps:30,   level:'Intermédiaire', muscle:'Explosivité'},
+      {n:'03',name:'Box Jump',        desc:'Saut sur place, programme hebdomadaire exclusif',  dur:null,     reps:15,   level:'Avancé',        muscle:'Pliométrie'}
+    ]
+  }
+};
+
+// ══ STATE ══
+let currentScreen = 'screen-splash';
+let activeZone = 'yoga';
+let activeExIdx = 0;
+let arTimerOn = false;
+let arTimerSecs = 0;
+let arTimerInterval = null;
+let reps = 12, sets = 3;
+let markerSetup = false;
+
+// ══ NAVIGATION ══
+function goTo(screenId) {
+  document.getElementById(currentScreen).classList.add('hidden');
+  document.getElementById(screenId).classList.remove('hidden');
+  currentScreen = screenId;
+}
+
+function goToMarker() { goTo('screen-marker'); }
+
+function goToAR() {
+  goTo('screen-ar');
+  // Init A-Frame marker events (once)
+  setTimeout(() => {
+    if (!markerSetup) {
+      setupMarker();
+      markerSetup = true;
+    }
+  }, 1000);
+  renderARPanel('yoga');
+  // Haptic
+  if (navigator.vibrate) navigator.vibrate(50);
+}
+
+// ══ MARKER EVENTS ══
+function setupMarker() {
+  const marker = document.getElementById('main-marker');
+  if (!marker) { setTimeout(setupMarker, 800); return; }
+
+  marker.addEventListener('markerFound', () => {
+    // Update HUD
+    document.getElementById('ar-dot').classList.add('live');
+    document.getElementById('ar-status-txt').style.color = 'var(--gold)';
+    document.getElementById('ar-status-txt').textContent = 'Reconnu';
+    document.getElementById('scan-prompt').classList.add('hide');
+    document.getElementById('zone-panel').classList.add('show');
+    document.getElementById('detected-badge').classList.add('show');
+    document.getElementById('ar-timer').classList.add('show');
+    // Brackets gold
+    ['hb-tl','hb-tr','hb-bl','hb-br'].forEach(id => document.getElementById(id).classList.add('detected'));
+    showToast('Tapis reconnu ✦');
+    if (navigator.vibrate) navigator.vibrate([80,40,80]);
+    setTimeout(() => document.getElementById('detected-badge').classList.remove('show'), 3000);
+  });
+
+  marker.addEventListener('markerLost', () => {
+    document.getElementById('ar-dot').classList.remove('live');
+    document.getElementById('ar-status-txt').style.color = 'rgba(201,168,76,0.5)';
+    document.getElementById('ar-status-txt').textContent = 'Repositionnez…';
+    document.getElementById('scan-prompt').classList.remove('hide');
+    ['hb-tl','hb-tr','hb-bl','hb-br'].forEach(id => document.getElementById(id).classList.remove('detected'));
+  });
+}
+
+// ══ ZONE SELECTION ══
+function selectZone(zoneId, el) {
+  activeZone = zoneId;
+  activeExIdx = 0;
+  document.querySelectorAll('.ztab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  const z = ZONES[zoneId];
+  document.getElementById('zp-eyebrow').textContent = z.eyebrow;
+  document.getElementById('zp-name').textContent = z.label;
+  renderARPanel(zoneId);
+  showToast(z.label);
+}
+
+function renderARPanel(zoneId) {
+  const z = ZONES[zoneId];
+  const row = document.getElementById('ar-ex-row');
+  row.innerHTML = z.exercises.map((ex,i) => `
+    <div class="ex-card ${i===0?'active':''}" onclick="pickExercise(${i},this)">
+      <div class="ec-n">${ex.n}</div>
+      <div class="ec-name">${ex.name}</div>
+      <div class="ec-desc">${ex.desc}</div>
+      <div class="ec-tags">
+        <span class="ec-tag">${ex.dur || ex.reps+' REPS'}</span>
+        <span class="ec-tag">${ex.level}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function pickExercise(idx, el) {
+  activeExIdx = idx;
+  document.querySelectorAll('.ex-card').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ══ EXERCISE DETAIL ══
+function openExercise() {
+  const z = ZONES[activeZone];
+  const ex = z.exercises[activeExIdx];
+  document.getElementById('ex-zone-badge').textContent = z.eyebrow + ' · ' + ex.level;
+  document.getElementById('ex-name-big').textContent = ex.name;
+  document.getElementById('ex-desc-full').textContent = ex.desc + '. Le personnage AR sur le tapis guide chaque mouvement en temps réel.';
+  document.getElementById('ex-meta-duration').textContent = ex.dur || (ex.reps + ' REPS');
+  document.getElementById('ex-meta-level').textContent = ex.level.toUpperCase();
+  document.getElementById('ex-meta-muscle').textContent = ex.muscle.toUpperCase();
+
+  // Indicators (animated)
+  setTimeout(() => {
+    setBar('ei-calm','ev-calm', z.calm);
+    setBar('ei-cardio','ev-cardio', z.cardio);
+    setBar('ei-force','ev-force', z.force);
+    setBar('ei-flex','ev-flex', z.flex);
+  }, 100);
+
+  goTo('screen-exercise');
+}
+
+function setBar(fillId, valId, pct) {
+  document.getElementById(fillId).style.width = pct + '%';
+  document.getElementById(valId).textContent = pct + '%';
+}
+
+// ══ AR TIMER ══
+function toggleARTimer() {
+  arTimerOn = !arTimerOn;
+  const btn = document.getElementById('ar-timer-btn');
+  if (arTimerOn) {
+    btn.textContent = '⏸ Pause';
+    arTimerInterval = setInterval(() => {
+      arTimerSecs++;
+      const m = String(Math.floor(arTimerSecs/60)).padStart(2,'0');
+      const s = String(arTimerSecs%60).padStart(2,'0');
+      document.getElementById('ar-timer').textContent = m+':'+s;
+    }, 1000);
+  } else {
+    btn.textContent = '▶ Timer';
+    clearInterval(arTimerInterval);
+  }
+}
+
+// ══ CONTROLS ══
+function changeVal(type, delta) {
+  if (type === 'reps') {
+    reps = Math.max(1, Math.min(50, reps+delta));
+    document.getElementById('ctrl-reps').textContent = reps;
+  } else {
+    sets = Math.max(1, Math.min(10, sets+delta));
+    document.getElementById('ctrl-sets').textContent = sets;
+  }
+}
+
+// ══ TOAST ══
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ══ PWA INSTALL ══
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+});
+</script>
+
+</body>
+</html>
