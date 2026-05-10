@@ -1,1 +1,1195 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Tonic Carpet">
+<meta name="theme-color" content="#071f25">
+<title>Tonic Carpet — Détection cercles</title>
 
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:#061f25;color:white;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif}
+.screen{position:absolute;inset:0;display:none}
+.screen.active{display:block}
+#home{padding:28px;background:linear-gradient(180deg,#8fcfca 0%,#477896 55%,#102e3a 100%);overflow:auto}
+.logo{font-size:42px;line-height:.86;font-weight:800;color:#4a6f8b;letter-spacing:-2px;margin-top:20px}
+.logo span{display:block;font-weight:300}
+.card{margin-top:34px;background:rgba(255,255,255,.92);color:#153a43;border-radius:28px;padding:22px;box-shadow:0 22px 50px rgba(0,0,0,.22)}
+.card h1{font-size:30px;line-height:1.05;margin:0 0 10px}
+.card p{font-size:16px;line-height:1.4;color:#365b63}
+button{font:inherit}
+.primary,.secondary{width:100%;border:0;border-radius:18px;padding:17px;margin-top:12px;font-size:17px;font-weight:800}
+.primary{background:#071f25;color:white}
+.secondary{background:rgba(255,255,255,.92);color:#143b44}
+#ar{background:#000}
+video,canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+#scanCanvas{display:none}
+#overlay{z-index:3;pointer-events:none}
+.topbar{position:absolute;top:0;left:0;right:0;z-index:10;padding:calc(env(safe-area-inset-top) + 12px) 16px 16px;display:flex;justify-content:space-between;align-items:center;background:linear-gradient(180deg,rgba(0,0,0,.78),transparent)}
+.back{border:0;background:rgba(255,255,255,.14);color:white;border-radius:999px;padding:10px 13px;font-weight:800}
+.status{display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.48);padding:10px 12px;border-radius:999px;font-size:13px}
+.dot{width:8px;height:8px;border-radius:50%;background:#777}
+.dot.on{background:#70f5e8;box-shadow:0 0 14px #70f5e8}
+.panel{position:absolute;left:14px;right:14px;bottom:calc(env(safe-area-inset-bottom) + 16px);z-index:10;background:rgba(0,0,0,.62);backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.12);border-radius:24px;padding:16px}
+.panel h2{margin:0 0 6px;font-size:20px}
+.panel p{margin:0;color:rgba(255,255,255,.78);font-size:14px;line-height:1.36}
+.mini{display:flex;gap:8px;margin-top:12px}
+.mini button{flex:1;border:0;border-radius:14px;padding:12px;font-weight:800;background:#70f5e8;color:#06282e}
+.mini button.dark{background:rgba(255,255,255,.15);color:white}
+.debug{position:absolute;left:14px;top:calc(env(safe-area-inset-top) + 74px);z-index:11;font-family:monospace;font-size:11px;background:rgba(0,0,0,.48);padding:8px;border-radius:12px;color:#c8fff8;display:none}
+.debug.show{display:block}
+.scanHint{position:absolute;z-index:5;top:50%;left:50%;transform:translate(-50%,-50%);width:62vw;max-width:300px;height:68vh;border:2px dashed rgba(112,245,232,.68);border-radius:26px;box-shadow:0 0 30px rgba(112,245,232,.18);pointer-events:none}
+.scanHint.hidden{display:none}
+.line{position:absolute;left:8%;right:8%;height:2px;background:#70f5e8;box-shadow:0 0 16px #70f5e8;animation:scan 2.4s infinite}
+@keyframes scan{0%{top:8%}50%{top:90%}100%{top:8%}}
+.zonePanel{display:none;margin-top:12px;grid-template-columns:repeat(3,1fr);gap:8px}
+.zonePanel.show{display:grid}
+.zoneBtn{background:rgba(112,245,232,.12);border:1px solid rgba(112,245,232,.25);color:white;border-radius:14px;padding:10px 6px;text-align:center;font-size:12px;font-weight:800}
+.zoneBtn.active{background:#70f5e8;color:#06282e}
+</style>
+</head>
+
+<body>
+
+<section id="home" class="screen active">
+  <div class="logo">tonic<span>carpet</span></div>
+  <div class="card">
+    <h1>Détection par cercles uniquement</h1>
+    <p>
+      Cette version ignore le fond bleu, le logo PSA et le rond central avec le tigre.
+      Elle cherche uniquement les cercles fonctionnels du tapis.
+    </p>
+    <button class="primary" onclick="startAR()">Ouvrir la caméra</button>
+    <button class="secondary" onclick="demoMode()">Démo AR</button>
+  </div>
+</section>
+
+<section id="ar" class="screen">
+  <video id="video" autoplay playsinline muted></video>
+  <canvas id="scanCanvas"></canvas>
+  <canvas id="overlay"></canvas>
+
+  <div class="scanHint" id="scanHint">
+    <div class="line"></div>
+  </div>
+
+  <div class="topbar">
+    <button class="back" onclick="stopAR()">← Retour</button>
+    <div class="status">
+      <span class="dot" id="dot"></span>
+      <span id="statusTxt">Recherche cercles</span>
+    </div>
+  </div>
+
+  <div class="debug" id="debug"></div>
+
+  <div class="panel">
+    <h2 id="title">Cherche les cercles utiles…</h2>
+    <p id="msg">Visez le tapis. Le rond PSA et le rond central avec le tigre sont volontairement exclus.</p>
+
+    <div class="zonePanel" id="zonePanel">
+      <div class="zoneBtn active">Yoga</div>
+      <div class="zoneBtn">Sport</div>
+      <div class="zoneBtn">Cardio</div>
+      <div class="zoneBtn">Abdos</div>
+      <div class="zoneBtn">Méditation</div>
+      <div class="zoneBtn">+</div>
+    </div>
+
+    <div class="mini">
+      <button onclick="forceOverlay()">Forcer AR</button>
+      <button class="dark" onclick="toggleDebug()">Debug</button>
+    </div>
+  </div>
+</section>
+
+<script>
+const video = document.getElementById("video");
+const scanCanvas = document.getElementById("scanCanvas");
+const scanCtx = scanCanvas.getContext("2d", { willReadFrequently:true });
+const overlay = document.getElementById("overlay");
+const ctx = overlay.getContext("2d");
+
+const dot = document.getElementById("dot");
+const statusTxt = document.getElementById("statusTxt");
+const title = document.getElementById("title");
+const msg = document.getElementById("msg");
+const debugEl = document.getElementById("debug");
+const scanHint = document.getElementById("scanHint");
+const zonePanel = document.getElementById("zonePanel");
+
+let stream = null;
+let raf = null;
+let debug = false;
+let forced = false;
+let lastModel = null;
+let stable = 0;
+
+function show(id){
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+}
+
+function fitCanvas(){
+  overlay.width = innerWidth * devicePixelRatio;
+  overlay.height = innerHeight * devicePixelRatio;
+  overlay.style.width = innerWidth + "px";
+  overlay.style.height = innerHeight + "px";
+  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+}
+addEventListener("resize", fitCanvas);
+fitCanvas();
+
+async function startAR(){
+  show("ar");
+  fitCanvas();
+
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({
+      video:{
+        facingMode:{ideal:"environment"},
+        width:{ideal:1280},
+        height:{ideal:720}
+      },
+      audio:false
+    });
+
+    video.srcObject = stream;
+    await video.play();
+    loop();
+
+  }catch(e){
+    title.textContent = "Caméra non disponible";
+    msg.textContent = "Sur iPhone, ouvre cette page en HTTPS et autorise la caméra dans Safari.";
+  }
+}
+
+function stopAR(){
+  if(raf) cancelAnimationFrame(raf);
+  if(stream) stream.getTracks().forEach(t => t.stop());
+
+  stream = null;
+  forced = false;
+  lastModel = null;
+  stable = 0;
+
+  show("home");
+}
+
+function demoMode(){
+  show("ar");
+  forced = true;
+  fitCanvas();
+  loop();
+}
+
+function forceOverlay(){
+  forced = !forced;
+}
+
+function toggleDebug(){
+  debug = !debug;
+  debugEl.classList.toggle("show", debug);
+}
+
+function rgbToHsv(r,g,b){
+  r/=255; g/=255; b/=255;
+
+  let max = Math.max(r,g,b);
+  let min = Math.min(r,g,b);
+  let h = 0;
+  let s;
+  let v = max;
+  let d = max - min;
+
+  s = max === 0 ? 0 : d / max;
+
+  if(max !== min){
+    switch(max){
+      case r: h = (g-b)/d + (g<b ? 6 : 0); break;
+      case g: h = (b-r)/d + 2; break;
+      case b: h = (r-g)/d + 4; break;
+    }
+    h *= 60;
+  }
+
+  return [h,s,v];
+}
+
+function isWhiteLine(r,g,b){
+  const [h,s,v] = rgbToHsv(r,g,b);
+  return v > 0.72 && s < 0.32;
+}
+
+function analyze(){
+  if(forced){
+    return {
+      ok:true,
+      circles:[
+        {x:innerWidth*.50,y:innerHeight*.20,r:44,type:"top"},
+        {x:innerWidth*.28,y:innerHeight*.39,r:46,type:"leftTop"},
+        {x:innerWidth*.72,y:innerHeight*.39,r:46,type:"rightTop"},
+        {x:innerWidth*.28,y:innerHeight*.62,r:46,type:"leftLow"},
+        {x:innerWidth*.72,y:innerHeight*.62,r:46,type:"rightLow"},
+        {x:innerWidth*.50,y:innerHeight*.80,r:52,type:"plus"}
+      ],
+      excluded:[
+        {x:innerWidth*.5,y:innerHeight*.50,r:55,type:"tigre"},
+        {x:innerWidth*.5,y:innerHeight*.92,r:55,type:"psa"}
+      ]
+    };
+  }
+
+  if(video.readyState < 2) return null;
+
+  const sw = 240;
+  const sh = 420;
+
+  scanCanvas.width = sw;
+  scanCanvas.height = sh;
+
+  scanCtx.drawImage(video,0,0,sw,sh);
+  const img = scanCtx.getImageData(0,0,sw,sh);
+  const d = img.data;
+
+  const mask = new Uint8Array(sw * sh);
+
+  for(let y=0; y<sh; y++){
+    for(let x=0; x<sw; x++){
+      const i = (y * sw + x) * 4;
+      if(isWhiteLine(d[i], d[i+1], d[i+2])){
+        mask[y * sw + x] = 1;
+      }
+    }
+  }
+
+  const visited = new Uint8Array(sw * sh);
+  const blobs = [];
+  const qx = [];
+  const qy = [];
+
+  for(let y=2; y<sh-2; y++){
+    for(let x=2; x<sw-2; x++){
+      const idx = y * sw + x;
+
+      if(!mask[idx] || visited[idx]) continue;
+
+      let minx = x;
+      let maxx = x;
+      let miny = y;
+      let maxy = y;
+      let count = 0;
+
+      qx.length = 0;
+      qy.length = 0;
+
+      qx.push(x);
+      qy.push(y);
+      visited[idx] = 1;
+
+      for(let qi=0; qi<qx.length; qi++){
+        const cx = qx[qi];
+        const cy = qy[qi];
+
+        count++;
+
+        if(cx < minx) minx = cx;
+        if(cx > maxx) maxx = cx;
+        if(cy < miny) miny = cy;
+        if(cy > maxy) maxy = cy;
+
+        const nbs = [[1,0],[-1,0],[0,1],[0,-1]];
+
+        for(const [dx,dy] of nbs){
+          const nx = cx + dx;
+          const ny = cy + dy;
+          const ni = ny * sw + nx;
+
+          if(nx < 2 || nx >= sw-2 || ny < 2 || ny >= sh-2) continue;
+          if(visited[ni] || !mask[ni]) continue;
+
+          visited[ni] = 1;
+          qx.push(nx);
+          qy.push(ny);
+        }
+      }
+
+      const bw = maxx - minx + 1;
+      const bh = maxy - miny + 1;
+      const ratio = bw / bh;
+
+      if(
+        count > 22 &&
+        bw > 9 &&
+        bh > 9 &&
+        bw < 115 &&
+        bh < 115 &&
+        ratio > 0.45 &&
+        ratio < 2.2
+      ){
+        blobs.push({
+          x:(minx + maxx) / 2,
+          y:(miny + maxy) / 2,
+          w:bw,
+          h:bh,
+          r:Math.max(bw,bh) / 2,
+          count
+        });
+      }
+    }
+  }
+
+  blobs.sort((a,b) => b.count - a.count);
+
+  const candidates = [];
+
+  for(const b of blobs){
+    if(!candidates.some(c => Math.hypot(c.x-b.x, c.y-b.y) < 18)){
+      candidates.push(b);
+    }
+  }
+
+  let circles = candidates.filter(c => c.r > 11);
+
+  if(circles.length < 3){
+    return {ok:false, circles:[], excluded:[], raw:candidates};
+  }
+
+  const sx = innerWidth / sw;
+  const sy = innerHeight / sh;
+
+  circles = circles.map(c => ({
+    ...c,
+    x:c.x * sx,
+    y:c.y * sy,
+    r:Math.max(c.r * sx, c.r * sy)
+  }));
+
+  const ys = circles.map(c => c.y).sort((a,b) => a-b);
+  const minY = ys[0];
+  const maxY = ys[ys.length-1];
+  const height = maxY - minY || innerHeight;
+
+  const xs = circles.map(c => c.x).sort((a,b) => a-b);
+  const centerX = xs[Math.floor(xs.length / 2)];
+
+  const excluded = [];
+  let useful = [];
+
+  for(const c of circles){
+    const relY = (c.y - minY) / height;
+    const nearCenter = Math.abs(c.x - centerX) < innerWidth * 0.13;
+
+    if(relY > 0.88){
+      excluded.push({...c, type:"psa"});
+      continue;
+    }
+
+    if(nearCenter && relY > 0.42 && relY < 0.63){
+      excluded.push({...c, type:"tigre"});
+      continue;
+    }
+
+    useful.push(c);
+  }
+
+  const avgR = useful.length ? useful.reduce((s,c) => s + c.r, 0) / useful.length : 0;
+  useful = useful.filter(c => c.r > Math.max(18, avgR * 0.55));
+
+  const ok = useful.length >= 3;
+
+  return {ok, circles:useful, excluded, raw:candidates};
+}
+
+function buildModel(circles){
+  if(!circles || circles.length < 3) return null;
+
+  const minX = Math.min(...circles.map(c => c.x));
+  const maxX = Math.max(...circles.map(c => c.x));
+  const minY = Math.min(...circles.map(c => c.y));
+  const maxY = Math.max(...circles.map(c => c.y));
+
+  const cx = (minX + maxX) / 2;
+  const w = Math.max(maxX - minX, innerWidth * 0.38);
+  const h = Math.max(maxY - minY, innerHeight * 0.48);
+
+  return {
+    x:cx - w * 0.70,
+    y:minY - h * 0.10,
+    w:w * 1.40,
+    h:h * 1.20,
+    cx,
+    cy:(minY + maxY) / 2
+  };
+}
+
+function smoothModel(a,b){
+  if(!a) return b;
+
+  const k = 0.22;
+
+  return {
+    x:a.x*(1-k)+b.x*k,
+    y:a.y*(1-k)+b.y*k,
+    w:a.w*(1-k)+b.w*k,
+    h:a.h*(1-k)+b.h*k,
+    cx:a.cx*(1-k)+b.cx*k,
+    cy:a.cy*(1-k)+b.cy*k
+  };
+}
+
+function loop(){
+  raf = requestAnimationFrame(loop);
+  ctx.clearRect(0,0,innerWidth,innerHeight);
+
+  const res = analyze();
+  if(!res) return;
+
+  let model = null;
+
+  if(res.ok){
+    stable++;
+    model = buildModel(res.circles);
+    lastModel = smoothModel(lastModel, model);
+  }else{
+    stable = Math.max(0, stable - 1);
+  }
+
+  const recognized = forced || (stable > 5 && lastModel);
+
+  if(recognized){
+    setRecognized(true, res.circles.length);
+    drawOverlay(lastModel, res.circles, res.excluded || []);
+  }else{
+    setRecognized(false, res.circles.length);
+  }
+
+  if(debug){
+    debugEl.innerHTML =
+      "cercles utiles : " + (res.circles?.length || 0) + "<br>" +
+      "exclus : " + (res.excluded?.length || 0) + "<br>" +
+      "stable : " + stable;
+
+    (res.circles || []).forEach(c => drawCircle(c,"rgba(0,255,120,.9)"));
+    (res.excluded || []).forEach(c => drawCircle(c,"rgba(255,60,60,.9)"));
+  }
+}
+
+function setRecognized(on,n){
+  dot.classList.toggle("on", on);
+  scanHint.classList.toggle("hidden", on);
+  zonePanel.classList.toggle("show", on);
+
+  statusTxt.textContent = on ? "Cercles reconnus" : "Recherche cercles";
+  title.textContent = on ? "Interface AR activée" : "Cherche les cercles utiles…";
+
+  msg.textContent = on
+    ? "Fond bleu ignoré. Rond PSA et rond central tigre exclus. Zones posées sur la géométrie utile."
+    : "Visez les cercles fonctionnels du tapis. Il faut au moins 3 cercles utiles visibles.";
+}
+
+function drawCircle(c,color){
+  ctx.beginPath();
+  ctx.arc(c.x,c.y,c.r,0,Math.PI*2);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 3;
+  ctx.stroke();
+}
+
+function drawOverlay(m,circles,excluded){
+  ctx.save();
+
+  ctx.strokeStyle = "rgba(112,245,232,.75)";
+  ctx.lineWidth = 3;
+  ctx.shadowColor = "#70f5e8";
+  ctx.shadowBlur = 18;
+  roundRect(ctx,m.x,m.y,m.w,m.h,24);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  ctx.setLineDash([12,10]);
+  ctx.strokeStyle = "rgba(255,255,255,.72)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(m.cx,m.y+16);
+  ctx.lineTo(m.cx,m.y+m.h-16);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  const zones = [
+    {name:"Yoga",icon:"🧘",x:0,y:.03},
+    {name:"Sport",icon:"🏃",x:-.30,y:.30},
+    {name:"Cardio",icon:"❤",x:.30,y:.30},
+    {name:"Abdos",icon:"💪",x:-.30,y:.64},
+    {name:"Médit.",icon:"☯",x:.30,y:.64},
+    {name:"+",icon:"+",x:0,y:.92}
+  ];
+
+  const S = Math.max(36, Math.min(70, m.w * 0.16));
+
+  zones.forEach((z,i) => {
+    drawZone(m.x + m.w * (.5 + z.x), m.y + m.h * z.y, S, z, i);
+  });
+
+  if(debug){
+    excluded.forEach(c => drawCircle(c,"rgba(255,70,70,.9)"));
+  }
+
+  ctx.restore();
+}
+
+function drawZone(x,y,S,z,i){
+  const t = performance.now() / 1000;
+  const p = 1 + Math.sin(t*2+i) * 0.035;
+
+  ctx.save();
+  ctx.translate(x,y);
+  ctx.scale(p,p);
+
+  ctx.beginPath();
+  ctx.arc(0,0,S,0,Math.PI*2);
+  ctx.fillStyle = "rgba(112,245,232,.22)";
+  ctx.fill();
+
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = "rgba(112,245,232,.95)";
+  ctx.shadowColor = "#70f5e8";
+  ctx.shadowBlur = 18;
+  ctx.stroke();
+
+  ctx.shadowBlur = 0;
+
+  ctx.beginPath();
+  ctx.ellipse(0,S*.14,S*.72,S*.20,0,0,Math.PI*2);
+  ctx.strokeStyle = "rgba(255,255,255,.55)";
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  ctx.fillStyle = "white";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  ctx.font = z.icon === "+"
+    ? "800 " + (S*.95) + "px -apple-system"
+    : "700 " + (S*.48) + "px -apple-system";
+
+  ctx.fillText(z.icon,0,-S*.08);
+
+  ctx.font = "800 " + Math.max(10,S*.18) + "px -apple-system";
+  ctx.fillText(z.name,0,S*.58);
+
+  ctx.restore();
+}
+
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+</script>
+
+</body>
+</html><!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Tonic Carpet">
+<meta name="theme-color" content="#071f25">
+<title>Tonic Carpet — Détection cercles</title>
+
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:#061f25;color:white;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif}
+.screen{position:absolute;inset:0;display:none}
+.screen.active{display:block}
+#home{padding:28px;background:linear-gradient(180deg,#8fcfca 0%,#477896 55%,#102e3a 100%);overflow:auto}
+.logo{font-size:42px;line-height:.86;font-weight:800;color:#4a6f8b;letter-spacing:-2px;margin-top:20px}
+.logo span{display:block;font-weight:300}
+.card{margin-top:34px;background:rgba(255,255,255,.92);color:#153a43;border-radius:28px;padding:22px;box-shadow:0 22px 50px rgba(0,0,0,.22)}
+.card h1{font-size:30px;line-height:1.05;margin:0 0 10px}
+.card p{font-size:16px;line-height:1.4;color:#365b63}
+button{font:inherit}
+.primary,.secondary{width:100%;border:0;border-radius:18px;padding:17px;margin-top:12px;font-size:17px;font-weight:800}
+.primary{background:#071f25;color:white}
+.secondary{background:rgba(255,255,255,.92);color:#143b44}
+#ar{background:#000}
+video,canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+#scanCanvas{display:none}
+#overlay{z-index:3;pointer-events:none}
+.topbar{position:absolute;top:0;left:0;right:0;z-index:10;padding:calc(env(safe-area-inset-top) + 12px) 16px 16px;display:flex;justify-content:space-between;align-items:center;background:linear-gradient(180deg,rgba(0,0,0,.78),transparent)}
+.back{border:0;background:rgba(255,255,255,.14);color:white;border-radius:999px;padding:10px 13px;font-weight:800}
+.status{display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.48);padding:10px 12px;border-radius:999px;font-size:13px}
+.dot{width:8px;height:8px;border-radius:50%;background:#777}
+.dot.on{background:#70f5e8;box-shadow:0 0 14px #70f5e8}
+.panel{position:absolute;left:14px;right:14px;bottom:calc(env(safe-area-inset-bottom) + 16px);z-index:10;background:rgba(0,0,0,.62);backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.12);border-radius:24px;padding:16px}
+.panel h2{margin:0 0 6px;font-size:20px}
+.panel p{margin:0;color:rgba(255,255,255,.78);font-size:14px;line-height:1.36}
+.mini{display:flex;gap:8px;margin-top:12px}
+.mini button{flex:1;border:0;border-radius:14px;padding:12px;font-weight:800;background:#70f5e8;color:#06282e}
+.mini button.dark{background:rgba(255,255,255,.15);color:white}
+.debug{position:absolute;left:14px;top:calc(env(safe-area-inset-top) + 74px);z-index:11;font-family:monospace;font-size:11px;background:rgba(0,0,0,.48);padding:8px;border-radius:12px;color:#c8fff8;display:none}
+.debug.show{display:block}
+.scanHint{position:absolute;z-index:5;top:50%;left:50%;transform:translate(-50%,-50%);width:62vw;max-width:300px;height:68vh;border:2px dashed rgba(112,245,232,.68);border-radius:26px;box-shadow:0 0 30px rgba(112,245,232,.18);pointer-events:none}
+.scanHint.hidden{display:none}
+.line{position:absolute;left:8%;right:8%;height:2px;background:#70f5e8;box-shadow:0 0 16px #70f5e8;animation:scan 2.4s infinite}
+@keyframes scan{0%{top:8%}50%{top:90%}100%{top:8%}}
+.zonePanel{display:none;margin-top:12px;grid-template-columns:repeat(3,1fr);gap:8px}
+.zonePanel.show{display:grid}
+.zoneBtn{background:rgba(112,245,232,.12);border:1px solid rgba(112,245,232,.25);color:white;border-radius:14px;padding:10px 6px;text-align:center;font-size:12px;font-weight:800}
+.zoneBtn.active{background:#70f5e8;color:#06282e}
+</style>
+</head>
+
+<body>
+
+<section id="home" class="screen active">
+  <div class="logo">tonic<span>carpet</span></div>
+  <div class="card">
+    <h1>Détection par cercles uniquement</h1>
+    <p>
+      Cette version ignore le fond bleu, le logo PSA et le rond central avec le tigre.
+      Elle cherche uniquement les cercles fonctionnels du tapis.
+    </p>
+    <button class="primary" onclick="startAR()">Ouvrir la caméra</button>
+    <button class="secondary" onclick="demoMode()">Démo AR</button>
+  </div>
+</section>
+
+<section id="ar" class="screen">
+  <video id="video" autoplay playsinline muted></video>
+  <canvas id="scanCanvas"></canvas>
+  <canvas id="overlay"></canvas>
+
+  <div class="scanHint" id="scanHint">
+    <div class="line"></div>
+  </div>
+
+  <div class="topbar">
+    <button class="back" onclick="stopAR()">← Retour</button>
+    <div class="status">
+      <span class="dot" id="dot"></span>
+      <span id="statusTxt">Recherche cercles</span>
+    </div>
+  </div>
+
+  <div class="debug" id="debug"></div>
+
+  <div class="panel">
+    <h2 id="title">Cherche les cercles utiles…</h2>
+    <p id="msg">Visez le tapis. Le rond PSA et le rond central avec le tigre sont volontairement exclus.</p>
+
+    <div class="zonePanel" id="zonePanel">
+      <div class="zoneBtn active">Yoga</div>
+      <div class="zoneBtn">Sport</div>
+      <div class="zoneBtn">Cardio</div>
+      <div class="zoneBtn">Abdos</div>
+      <div class="zoneBtn">Méditation</div>
+      <div class="zoneBtn">+</div>
+    </div>
+
+    <div class="mini">
+      <button onclick="forceOverlay()">Forcer AR</button>
+      <button class="dark" onclick="toggleDebug()">Debug</button>
+    </div>
+  </div>
+</section>
+
+<script>
+const video = document.getElementById("video");
+const scanCanvas = document.getElementById("scanCanvas");
+const scanCtx = scanCanvas.getContext("2d", { willReadFrequently:true });
+const overlay = document.getElementById("overlay");
+const ctx = overlay.getContext("2d");
+
+const dot = document.getElementById("dot");
+const statusTxt = document.getElementById("statusTxt");
+const title = document.getElementById("title");
+const msg = document.getElementById("msg");
+const debugEl = document.getElementById("debug");
+const scanHint = document.getElementById("scanHint");
+const zonePanel = document.getElementById("zonePanel");
+
+let stream = null;
+let raf = null;
+let debug = false;
+let forced = false;
+let lastModel = null;
+let stable = 0;
+
+function show(id){
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+}
+
+function fitCanvas(){
+  overlay.width = innerWidth * devicePixelRatio;
+  overlay.height = innerHeight * devicePixelRatio;
+  overlay.style.width = innerWidth + "px";
+  overlay.style.height = innerHeight + "px";
+  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+}
+addEventListener("resize", fitCanvas);
+fitCanvas();
+
+async function startAR(){
+  show("ar");
+  fitCanvas();
+
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({
+      video:{
+        facingMode:{ideal:"environment"},
+        width:{ideal:1280},
+        height:{ideal:720}
+      },
+      audio:false
+    });
+
+    video.srcObject = stream;
+    await video.play();
+    loop();
+
+  }catch(e){
+    title.textContent = "Caméra non disponible";
+    msg.textContent = "Sur iPhone, ouvre cette page en HTTPS et autorise la caméra dans Safari.";
+  }
+}
+
+function stopAR(){
+  if(raf) cancelAnimationFrame(raf);
+  if(stream) stream.getTracks().forEach(t => t.stop());
+
+  stream = null;
+  forced = false;
+  lastModel = null;
+  stable = 0;
+
+  show("home");
+}
+
+function demoMode(){
+  show("ar");
+  forced = true;
+  fitCanvas();
+  loop();
+}
+
+function forceOverlay(){
+  forced = !forced;
+}
+
+function toggleDebug(){
+  debug = !debug;
+  debugEl.classList.toggle("show", debug);
+}
+
+function rgbToHsv(r,g,b){
+  r/=255; g/=255; b/=255;
+
+  let max = Math.max(r,g,b);
+  let min = Math.min(r,g,b);
+  let h = 0;
+  let s;
+  let v = max;
+  let d = max - min;
+
+  s = max === 0 ? 0 : d / max;
+
+  if(max !== min){
+    switch(max){
+      case r: h = (g-b)/d + (g<b ? 6 : 0); break;
+      case g: h = (b-r)/d + 2; break;
+      case b: h = (r-g)/d + 4; break;
+    }
+    h *= 60;
+  }
+
+  return [h,s,v];
+}
+
+function isWhiteLine(r,g,b){
+  const [h,s,v] = rgbToHsv(r,g,b);
+  return v > 0.72 && s < 0.32;
+}
+
+function analyze(){
+  if(forced){
+    return {
+      ok:true,
+      circles:[
+        {x:innerWidth*.50,y:innerHeight*.20,r:44,type:"top"},
+        {x:innerWidth*.28,y:innerHeight*.39,r:46,type:"leftTop"},
+        {x:innerWidth*.72,y:innerHeight*.39,r:46,type:"rightTop"},
+        {x:innerWidth*.28,y:innerHeight*.62,r:46,type:"leftLow"},
+        {x:innerWidth*.72,y:innerHeight*.62,r:46,type:"rightLow"},
+        {x:innerWidth*.50,y:innerHeight*.80,r:52,type:"plus"}
+      ],
+      excluded:[
+        {x:innerWidth*.5,y:innerHeight*.50,r:55,type:"tigre"},
+        {x:innerWidth*.5,y:innerHeight*.92,r:55,type:"psa"}
+      ]
+    };
+  }
+
+  if(video.readyState < 2) return null;
+
+  const sw = 240;
+  const sh = 420;
+
+  scanCanvas.width = sw;
+  scanCanvas.height = sh;
+
+  scanCtx.drawImage(video,0,0,sw,sh);
+  const img = scanCtx.getImageData(0,0,sw,sh);
+  const d = img.data;
+
+  const mask = new Uint8Array(sw * sh);
+
+  for(let y=0; y<sh; y++){
+    for(let x=0; x<sw; x++){
+      const i = (y * sw + x) * 4;
+      if(isWhiteLine(d[i], d[i+1], d[i+2])){
+        mask[y * sw + x] = 1;
+      }
+    }
+  }
+
+  const visited = new Uint8Array(sw * sh);
+  const blobs = [];
+  const qx = [];
+  const qy = [];
+
+  for(let y=2; y<sh-2; y++){
+    for(let x=2; x<sw-2; x++){
+      const idx = y * sw + x;
+
+      if(!mask[idx] || visited[idx]) continue;
+
+      let minx = x;
+      let maxx = x;
+      let miny = y;
+      let maxy = y;
+      let count = 0;
+
+      qx.length = 0;
+      qy.length = 0;
+
+      qx.push(x);
+      qy.push(y);
+      visited[idx] = 1;
+
+      for(let qi=0; qi<qx.length; qi++){
+        const cx = qx[qi];
+        const cy = qy[qi];
+
+        count++;
+
+        if(cx < minx) minx = cx;
+        if(cx > maxx) maxx = cx;
+        if(cy < miny) miny = cy;
+        if(cy > maxy) maxy = cy;
+
+        const nbs = [[1,0],[-1,0],[0,1],[0,-1]];
+
+        for(const [dx,dy] of nbs){
+          const nx = cx + dx;
+          const ny = cy + dy;
+          const ni = ny * sw + nx;
+
+          if(nx < 2 || nx >= sw-2 || ny < 2 || ny >= sh-2) continue;
+          if(visited[ni] || !mask[ni]) continue;
+
+          visited[ni] = 1;
+          qx.push(nx);
+          qy.push(ny);
+        }
+      }
+
+      const bw = maxx - minx + 1;
+      const bh = maxy - miny + 1;
+      const ratio = bw / bh;
+
+      if(
+        count > 22 &&
+        bw > 9 &&
+        bh > 9 &&
+        bw < 115 &&
+        bh < 115 &&
+        ratio > 0.45 &&
+        ratio < 2.2
+      ){
+        blobs.push({
+          x:(minx + maxx) / 2,
+          y:(miny + maxy) / 2,
+          w:bw,
+          h:bh,
+          r:Math.max(bw,bh) / 2,
+          count
+        });
+      }
+    }
+  }
+
+  blobs.sort((a,b) => b.count - a.count);
+
+  const candidates = [];
+
+  for(const b of blobs){
+    if(!candidates.some(c => Math.hypot(c.x-b.x, c.y-b.y) < 18)){
+      candidates.push(b);
+    }
+  }
+
+  let circles = candidates.filter(c => c.r > 11);
+
+  if(circles.length < 3){
+    return {ok:false, circles:[], excluded:[], raw:candidates};
+  }
+
+  const sx = innerWidth / sw;
+  const sy = innerHeight / sh;
+
+  circles = circles.map(c => ({
+    ...c,
+    x:c.x * sx,
+    y:c.y * sy,
+    r:Math.max(c.r * sx, c.r * sy)
+  }));
+
+  const ys = circles.map(c => c.y).sort((a,b) => a-b);
+  const minY = ys[0];
+  const maxY = ys[ys.length-1];
+  const height = maxY - minY || innerHeight;
+
+  const xs = circles.map(c => c.x).sort((a,b) => a-b);
+  const centerX = xs[Math.floor(xs.length / 2)];
+
+  const excluded = [];
+  let useful = [];
+
+  for(const c of circles){
+    const relY = (c.y - minY) / height;
+    const nearCenter = Math.abs(c.x - centerX) < innerWidth * 0.13;
+
+    if(relY > 0.88){
+      excluded.push({...c, type:"psa"});
+      continue;
+    }
+
+    if(nearCenter && relY > 0.42 && relY < 0.63){
+      excluded.push({...c, type:"tigre"});
+      continue;
+    }
+
+    useful.push(c);
+  }
+
+  const avgR = useful.length ? useful.reduce((s,c) => s + c.r, 0) / useful.length : 0;
+  useful = useful.filter(c => c.r > Math.max(18, avgR * 0.55));
+
+  const ok = useful.length >= 3;
+
+  return {ok, circles:useful, excluded, raw:candidates};
+}
+
+function buildModel(circles){
+  if(!circles || circles.length < 3) return null;
+
+  const minX = Math.min(...circles.map(c => c.x));
+  const maxX = Math.max(...circles.map(c => c.x));
+  const minY = Math.min(...circles.map(c => c.y));
+  const maxY = Math.max(...circles.map(c => c.y));
+
+  const cx = (minX + maxX) / 2;
+  const w = Math.max(maxX - minX, innerWidth * 0.38);
+  const h = Math.max(maxY - minY, innerHeight * 0.48);
+
+  return {
+    x:cx - w * 0.70,
+    y:minY - h * 0.10,
+    w:w * 1.40,
+    h:h * 1.20,
+    cx,
+    cy:(minY + maxY) / 2
+  };
+}
+
+function smoothModel(a,b){
+  if(!a) return b;
+
+  const k = 0.22;
+
+  return {
+    x:a.x*(1-k)+b.x*k,
+    y:a.y*(1-k)+b.y*k,
+    w:a.w*(1-k)+b.w*k,
+    h:a.h*(1-k)+b.h*k,
+    cx:a.cx*(1-k)+b.cx*k,
+    cy:a.cy*(1-k)+b.cy*k
+  };
+}
+
+function loop(){
+  raf = requestAnimationFrame(loop);
+  ctx.clearRect(0,0,innerWidth,innerHeight);
+
+  const res = analyze();
+  if(!res) return;
+
+  let model = null;
+
+  if(res.ok){
+    stable++;
+    model = buildModel(res.circles);
+    lastModel = smoothModel(lastModel, model);
+  }else{
+    stable = Math.max(0, stable - 1);
+  }
+
+  const recognized = forced || (stable > 5 && lastModel);
+
+  if(recognized){
+    setRecognized(true, res.circles.length);
+    drawOverlay(lastModel, res.circles, res.excluded || []);
+  }else{
+    setRecognized(false, res.circles.length);
+  }
+
+  if(debug){
+    debugEl.innerHTML =
+      "cercles utiles : " + (res.circles?.length || 0) + "<br>" +
+      "exclus : " + (res.excluded?.length || 0) + "<br>" +
+      "stable : " + stable;
+
+    (res.circles || []).forEach(c => drawCircle(c,"rgba(0,255,120,.9)"));
+    (res.excluded || []).forEach(c => drawCircle(c,"rgba(255,60,60,.9)"));
+  }
+}
+
+function setRecognized(on,n){
+  dot.classList.toggle("on", on);
+  scanHint.classList.toggle("hidden", on);
+  zonePanel.classList.toggle("show", on);
+
+  statusTxt.textContent = on ? "Cercles reconnus" : "Recherche cercles";
+  title.textContent = on ? "Interface AR activée" : "Cherche les cercles utiles…";
+
+  msg.textContent = on
+    ? "Fond bleu ignoré. Rond PSA et rond central tigre exclus. Zones posées sur la géométrie utile."
+    : "Visez les cercles fonctionnels du tapis. Il faut au moins 3 cercles utiles visibles.";
+}
+
+function drawCircle(c,color){
+  ctx.beginPath();
+  ctx.arc(c.x,c.y,c.r,0,Math.PI*2);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 3;
+  ctx.stroke();
+}
+
+function drawOverlay(m,circles,excluded){
+  ctx.save();
+
+  ctx.strokeStyle = "rgba(112,245,232,.75)";
+  ctx.lineWidth = 3;
+  ctx.shadowColor = "#70f5e8";
+  ctx.shadowBlur = 18;
+  roundRect(ctx,m.x,m.y,m.w,m.h,24);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  ctx.setLineDash([12,10]);
+  ctx.strokeStyle = "rgba(255,255,255,.72)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(m.cx,m.y+16);
+  ctx.lineTo(m.cx,m.y+m.h-16);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  const zones = [
+    {name:"Yoga",icon:"🧘",x:0,y:.03},
+    {name:"Sport",icon:"🏃",x:-.30,y:.30},
+    {name:"Cardio",icon:"❤",x:.30,y:.30},
+    {name:"Abdos",icon:"💪",x:-.30,y:.64},
+    {name:"Médit.",icon:"☯",x:.30,y:.64},
+    {name:"+",icon:"+",x:0,y:.92}
+  ];
+
+  const S = Math.max(36, Math.min(70, m.w * 0.16));
+
+  zones.forEach((z,i) => {
+    drawZone(m.x + m.w * (.5 + z.x), m.y + m.h * z.y, S, z, i);
+  });
+
+  if(debug){
+    excluded.forEach(c => drawCircle(c,"rgba(255,70,70,.9)"));
+  }
+
+  ctx.restore();
+}
+
+function drawZone(x,y,S,z,i){
+  const t = performance.now() / 1000;
+  const p = 1 + Math.sin(t*2+i) * 0.035;
+
+  ctx.save();
+  ctx.translate(x,y);
+  ctx.scale(p,p);
+
+  ctx.beginPath();
+  ctx.arc(0,0,S,0,Math.PI*2);
+  ctx.fillStyle = "rgba(112,245,232,.22)";
+  ctx.fill();
+
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = "rgba(112,245,232,.95)";
+  ctx.shadowColor = "#70f5e8";
+  ctx.shadowBlur = 18;
+  ctx.stroke();
+
+  ctx.shadowBlur = 0;
+
+  ctx.beginPath();
+  ctx.ellipse(0,S*.14,S*.72,S*.20,0,0,Math.PI*2);
+  ctx.strokeStyle = "rgba(255,255,255,.55)";
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  ctx.fillStyle = "white";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  ctx.font = z.icon === "+"
+    ? "800 " + (S*.95) + "px -apple-system"
+    : "700 " + (S*.48) + "px -apple-system";
+
+  ctx.fillText(z.icon,0,-S*.08);
+
+  ctx.font = "800 " + Math.max(10,S*.18) + "px -apple-system";
+  ctx.fillText(z.name,0,S*.58);
+
+  ctx.restore();
+}
+
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+</script>
+
+</body>
+</html>
