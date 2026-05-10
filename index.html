@@ -1,1 +1,616 @@
+<!DOCTYPE html>
 
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Tonic Carpet">
+<meta name="theme-color" content="#080808">
+<title>Tonic Carpet</title>
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%23080808'/%3E%3Ccircle cx='256' cy='140' r='38' fill='none' stroke='%23C9A84C' stroke-width='8'/%3E%3Cline x1='256' y1='178' x2='256' y2='290' stroke='%23C9A84C' stroke-width='8' stroke-linecap='round'/%3E%3Cline x1='256' y1='210' x2='196' y2='250' stroke='%23C9A84C' stroke-width='7' stroke-linecap='round'/%3E%3Cline x1='256' y1='210' x2='316' y2='250' stroke='%23C9A84C' stroke-width='7' stroke-linecap='round'/%3E%3Cline x1='256' y1='290' x2='218' y2='370' stroke='%23C9A84C' stroke-width='7' stroke-linecap='round'/%3E%3Cline x1='256' y1='290' x2='294' y2='370' stroke='%23C9A84C' stroke-width='7' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Rajdhani:wght@300;400;600;700&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+:root{--gold:#C9A84C;--gold-lt:#E8C97A;--black:#080808;--border:rgba(201,168,76,0.2);--white:#F5F0E8;--muted:rgba(245,240,232,0.4)}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:var(--black);color:var(--white);font-family:'Rajdhani',sans-serif;overflow:hidden}
+.screen{position:fixed;inset:0;z-index:10;transition:opacity .6s}
+.screen.hidden{opacity:0;pointer-events:none}
+
+/* SPLASH */
+#s-splash{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;background:radial-gradient(ellipse 70% 50% at 50% 60%,rgba(201,168,76,.06) 0%,transparent 60%),var(–black)}
+.sp-icon{width:65px;height:65px;margin-bottom:1.8rem;animation:fu 1s .2s both}
+.sp-title{font-family:‘Cormorant Garamond’;font-weight:300;font-size:clamp(2.6rem,10vw,4.2rem);line-height:.9;text-align:center;animation:fu 1s .4s both}
+.sp-title em{font-style:italic;color:var(–gold);display:block}
+.sp-rule{width:50px;height:1px;background:linear-gradient(90deg,transparent,var(–gold),transparent);margin:1.6rem auto;animation:fu 1s .6s both}
+.sp-sub{font-family:‘Cormorant Garamond’;font-style:italic;font-size:.92rem;color:var(–muted);text-align:center;line-height:1.7;max-width:290px;animation:fu 1s .7s both}
+.sp-btn{margin-top:2.2rem;padding:.95rem 2.8rem;border:1px solid var(–gold);background:transparent;color:var(–gold-lt);font-family:‘Rajdhani’;font-weight:600;font-size:.8rem;letter-spacing:.25em;text-transform:uppercase;cursor:pointer;animation:fu 1s .9s both;position:relative;overflow:hidden}
+.sp-btn::before{content:’’;position:absolute;inset:0;background:var(–gold);transform:translateX(-101%);transition:transform .3s}
+.sp-btn:active::before{transform:translateX(0)}
+.sp-btn span{position:relative;z-index:1}
+.sp-btn:active span{color:var(–black)}
+.sp-hint{margin-top:1rem;font-family:‘DM Mono’;font-size:.52rem;letter-spacing:.15em;text-transform:uppercase;color:rgba(201,168,76,.28);text-align:center;animation:fu 1s 1.1s both}
+@keyframes fu{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+/* MARQUEUR */
+#s-marker{display:flex;flex-direction:column;align-items:center;padding:max(3rem,env(safe-area-inset-top)) 1.5rem max(2rem,env(safe-area-inset-bottom));overflow-y:auto;background:var(–black)}
+.mk-nav{width:100%;display:flex;align-items:center;justify-content:space-between;margin-bottom:1.8rem}
+.mk-back{font-family:‘DM Mono’;font-size:.58rem;letter-spacing:.15em;text-transform:uppercase;color:var(–muted);background:none;border:none;cursor:pointer}
+.mk-s{font-family:‘DM Mono’;font-size:.52rem;letter-spacing:.12em;color:rgba(201,168,76,.4)}
+.mk-title{font-family:‘Cormorant Garamond’;font-style:italic;font-size:1.7rem;color:var(–white);margin-bottom:.3rem;text-align:center}
+.mk-sub{font-family:‘DM Mono’;font-size:.56rem;letter-spacing:.18em;text-transform:uppercase;color:var(–gold);margin-bottom:1.8rem;text-align:center}
+.mk-card{background:#fff;border-radius:6px;padding:14px;margin-bottom:1.8rem;box-shadow:0 20px 60px rgba(0,0,0,.5);display:flex;flex-direction:column;align-items:center;gap:9px;width:230px}
+.mk-cl{font-family:‘Cormorant Garamond’;font-size:.62rem;color:#444;letter-spacing:.18em;text-transform:uppercase}
+.mk-cn{font-family:‘Cormorant Garamond’;font-style:italic;font-size:.68rem;color:#888;text-align:center}
+.mk-steps{width:100%;max-width:310px;display:flex;flex-direction:column;gap:.65rem;margin-bottom:1.8rem}
+.mk-si{display:flex;gap:.9rem;align-items:flex-start;padding:.8rem .95rem;border:1px solid var(–border);background:rgba(201,168,76,.03)}
+.mk-sn{font-family:‘Cormorant Garamond’;font-size:1.3rem;font-weight:300;font-style:italic;color:var(–gold);line-height:1;min-width:1.1rem}
+.mk-st{font-size:.78rem;line-height:1.5;color:var(–muted)}
+.mk-st strong{color:var(–white)}
+.mk-cta{width:100%;max-width:270px;padding:.95rem;border:1px solid var(–gold);background:transparent;color:var(–gold-lt);font-family:‘Rajdhani’;font-weight:600;font-size:.8rem;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;position:relative;overflow:hidden}
+.mk-cta::before{content:’’;position:absolute;inset:0;background:var(–gold);transform:translateX(-101%);transition:transform .3s}
+.mk-cta:active::before{transform:translateX(0)}
+.mk-cta span{position:relative;z-index:1}
+.mk-cta:active span{color:var(–black)}
+
+/* AR */
+#s-ar{background:#000;z-index:20}
+#ar-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1}
+#ar-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:2;pointer-events:none}
+#ar-hud{position:absolute;inset:0;z-index:50;pointer-events:none}
+.hc{position:absolute;width:38px;height:38px;border-color:rgba(201,168,76,.5);border-style:solid;transition:all .4s}
+.hc.tl{top:max(58px,env(safe-area-inset-top));left:13px;border-width:1.5px 0 0 1.5px}
+.hc.tr{top:max(58px,env(safe-area-inset-top));right:13px;border-width:1.5px 1.5px 0 0}
+.hc.bl{bottom:128px;left:13px;border-width:0 0 1.5px 1.5px}
+.hc.br{bottom:128px;right:13px;border-width:0 1.5px 1.5px 0}
+.hc.on{border-color:var(–gold)}
+#ar-top{position:absolute;top:0;left:0;right:0;z-index:51;pointer-events:all;padding:max(.6rem,env(safe-area-inset-top)) 1.1rem .75rem;background:linear-gradient(180deg,rgba(8,8,8,.92) 0%,transparent 100%);display:flex;align-items:center;justify-content:space-between}
+.ar-logo{font-family:‘Cormorant Garamond’;font-size:1.05rem;font-weight:300;letter-spacing:.1em}
+.ar-logo em{font-style:italic;color:var(–gold)}
+.ar-st{display:flex;align-items:center;gap:.4rem;font-family:‘DM Mono’;font-size:.52rem;letter-spacing:.1em;text-transform:uppercase}
+.ar-dot{width:6px;height:6px;border-radius:50%;background:rgba(201,168,76,.4);animation:bl 1.5s ease-in-out infinite}
+.ar-dot.on{background:var(–gold);animation:none;box-shadow:0 0 8px var(–gold)}
+@keyframes bl{0%,100%{opacity:.3}50%{opacity:1}}
+.ar-bk{font-family:‘DM Mono’;font-size:.56rem;letter-spacing:.12em;text-transform:uppercase;color:var(–muted);background:none;border:none;cursor:pointer;pointer-events:all}
+#ar-scan{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:52;pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:1rem;transition:opacity .4s}
+#ar-scan.hide{opacity:0}
+.sb{width:155px;height:155px;position:relative}
+.sc{position:absolute;width:20px;height:20px;border-color:rgba(201,168,76,.7);border-style:solid}
+.sc.tl{top:0;left:0;border-width:2px 0 0 2px}.sc.tr{top:0;right:0;border-width:2px 2px 0 0}
+.sc.bl{bottom:0;left:0;border-width:0 0 2px 2px}.sc.br{bottom:0;right:0;border-width:0 2px 2px 0}
+.sl{position:absolute;left:4px;right:4px;height:1px;background:linear-gradient(90deg,transparent,var(–gold),transparent);animation:sv 2.5s ease-in-out infinite}
+@keyframes sv{0%,100%{top:4px;opacity:0}8%{opacity:.8}92%{opacity:.8}100%{top:147px}}
+.st{font-family:‘Cormorant Garamond’;font-style:italic;font-size:.9rem;color:rgba(245,240,232,.55);text-align:center}
+.sh{font-family:‘DM Mono’;font-size:.5rem;letter-spacing:.15em;text-transform:uppercase;color:rgba(201,168,76,.45);text-align:center}
+#ar-badge{position:absolute;top:max(63px,calc(env(safe-area-inset-top)+48px));left:50%;transform:translateX(-50%);z-index:53;pointer-events:none;display:flex;align-items:center;gap:.4rem;background:rgba(8,8,8,.92);border:1px solid rgba(201,168,76,.5);padding:.38rem 1rem;font-family:‘DM Mono’;font-size:.56rem;letter-spacing:.12em;text-transform:uppercase;color:var(–gold);white-space:nowrap;opacity:0;transition:opacity .4s}
+#ar-badge.show{opacity:1}
+#ar-badge::before{content:’’;width:5px;height:5px;border-radius:50%;background:var(–gold);box-shadow:0 0 6px var(–gold)}
+#ar-timer{position:absolute;top:max(63px,calc(env(safe-area-inset-top)+48px));right:.9rem;z-index:53;font-family:‘Cormorant Garamond’;font-size:1.7rem;font-weight:300;color:var(–gold);display:none}
+#ar-timer.show{display:block}
+#ar-panel{position:absolute;bottom:0;left:0;right:0;z-index:52;pointer-events:all;padding:4.5rem 1rem max(1.1rem,env(safe-area-inset-bottom));background:linear-gradient(0deg,rgba(8,8,8,.98) 0%,rgba(8,8,8,.7) 65%,transparent 100%);transform:translateY(100%);transition:transform .5s cubic-bezier(.32,.72,0,1)}
+#ar-panel.show{transform:translateY(0)}
+.zp-ey{font-family:‘DM Mono’;font-size:.5rem;letter-spacing:.18em;text-transform:uppercase;color:var(–gold);margin-bottom:.2rem}
+.zp-nm{font-family:‘Cormorant Garamond’;font-style:italic;font-size:1.2rem;color:var(–white);margin-bottom:.7rem}
+.ztabs{display:flex;gap:.35rem;overflow-x:auto;margin:0 -1rem;padding:0 1rem .65rem;scrollbar-width:none}
+.ztabs::-webkit-scrollbar{display:none}
+.zt{flex-shrink:0;padding:.55rem .8rem;border:1px solid rgba(201,168,76,.15);background:rgba(8,8,8,.8);cursor:pointer;transition:all .2s;min-width:68px;display:flex;flex-direction:column;gap:2px}
+.zt.active{border-color:var(–gold);background:rgba(201,168,76,.07)}
+.zt-e{font-size:1.05rem}
+.zt-n{font-family:‘DM Mono’;font-size:.48rem;letter-spacing:.08em;text-transform:uppercase;color:var(–muted)}
+.zt.active .zt-n{color:var(–gold)}
+.ex-row{display:flex;gap:.45rem;overflow-x:auto;margin:.65rem -1rem .65rem;padding:0 1rem;scrollbar-width:none}
+.ex-row::-webkit-scrollbar{display:none}
+.ex-c{flex-shrink:0;width:168px;border:1px solid rgba(201,168,76,.12);background:rgba(8,8,8,.92);padding:.8rem;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.ex-c::after{content:’’;position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(–gold),transparent);opacity:0;transition:opacity .2s}
+.ex-c.active{border-color:var(–gold)}.ex-c.active::after{opacity:1}
+.ec-n{font-family:‘Cormorant Garamond’;font-size:1.4rem;font-weight:300;color:rgba(201,168,76,.14);line-height:1}
+.ec-nm{font-family:‘Rajdhani’;font-weight:600;font-size:.82rem;color:var(–white);margin-bottom:.2rem}
+.ec-d{font-size:.7rem;line-height:1.4;color:var(–muted)}
+.ec-tg{display:flex;gap:.28rem;margin-top:.45rem}
+.ec-t{font-family:‘DM Mono’;font-size:.46rem;letter-spacing:.08em;text-transform:uppercase;padding:.18rem .38rem;border:1px solid rgba(201,168,76,.2);color:var(–gold)}
+.ar-btns{display:flex;gap:.45rem;margin-top:.45rem}
+.ar-btn{flex:1;padding:.7rem;border:1px solid var(–border);background:transparent;color:var(–muted);font-family:‘Rajdhani’;font-weight:600;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;cursor:pointer}
+.ar-btn.gold{border-color:var(–gold);color:var(–gold-lt);background:rgba(201,168,76,.08)}
+.ar-btn:active{opacity:.7}
+
+/* EXERCICE */
+#s-ex{background:var(–black);display:flex;flex-direction:column;padding:max(1.1rem,env(safe-area-inset-top)) 1.4rem max(1.4rem,env(safe-area-inset-bottom));overflow-y:auto}
+.ex-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.8rem}
+.ex-bk{font-family:‘DM Mono’;font-size:.56rem;letter-spacing:.12em;text-transform:uppercase;color:var(–muted);background:none;border:none;cursor:pointer}
+.ex-bdg{font-family:‘DM Mono’;font-size:.5rem;letter-spacing:.1em;text-transform:uppercase;padding:.26rem .6rem;border:1px solid var(–border);color:var(–gold)}
+.ex-stage{height:190px;display:flex;align-items:center;justify-content:center;border:1px solid var(–border);margin-bottom:1.3rem;position:relative;overflow:hidden;background:radial-gradient(ellipse 60% 60% at 50% 50%,rgba(201,168,76,.04) 0%,transparent 70%)}
+.ex-stage::after{content:’’;position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(–gold),transparent);opacity:.3}
+.sk{filter:drop-shadow(0 0 10px rgba(201,168,76,.4))}
+.sk circle,.sk line{stroke:var(–gold);stroke-linecap:round;fill:none}
+.ex-nm{font-family:‘Cormorant Garamond’;font-style:italic;font-weight:300;font-size:2.1rem;color:var(–white);line-height:1;margin-bottom:.28rem}
+.ex-mt{display:flex;gap:.75rem;font-family:‘DM Mono’;font-size:.56rem;letter-spacing:.1em;text-transform:uppercase;color:var(–gold);margin-bottom:1.1rem}
+.ex-mt span{color:var(–muted)}
+.ex-ds{font-family:‘Cormorant Garamond’;font-size:.95rem;line-height:1.75;color:var(–muted);margin-bottom:1.3rem}
+.ex-bars{display:flex;flex-direction:column;gap:.5rem;margin-bottom:1.3rem}
+.eb-r{display:flex;align-items:center;gap:.65rem}
+.eb-l{font-family:‘DM Mono’;font-size:.5rem;letter-spacing:.08em;text-transform:uppercase;color:var(–muted);width:54px}
+.eb-t{flex:1;height:2px;background:rgba(255,255,255,.06)}
+.eb-f{height:100%;background:linear-gradient(90deg,#8B6914,var(–gold-lt));transition:width 1s ease}
+.eb-v{font-family:‘DM Mono’;font-size:.5rem;color:var(–gold);width:24px;text-align:right}
+.ex-ctrl{display:flex;gap:1.1rem;align-items:center;border:1px solid var(–border);padding:.95rem;margin-bottom:1.1rem}
+.cg{flex:1;display:flex;flex-direction:column;gap:.28rem}
+.cl{font-family:‘DM Mono’;font-size:.46rem;letter-spacing:.15em;text-transform:uppercase;color:var(–muted)}
+.cv{font-family:‘Cormorant Garamond’;font-size:1.9rem;font-weight:300;color:var(–gold);line-height:1}
+.cbs{display:flex;gap:.3rem}
+.cb{width:28px;height:28px;border:1px solid var(–border);background:transparent;color:var(–gold-lt);font-size:.95rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.cb:active{background:rgba(201,168,76,.15)}
+.ex-go{width:100%;padding:.95rem;border:1px solid var(–gold);background:transparent;color:var(–gold-lt);font-family:‘Rajdhani’;font-weight:700;font-size:.82rem;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;position:relative;overflow:hidden}
+.ex-go::before{content:’’;position:absolute;inset:0;background:var(–gold);transform:translateX(-101%);transition:transform .3s}
+.ex-go:active::before{transform:translateX(0)}
+.ex-go span{position:relative;z-index:1}
+.ex-go:active span{color:var(–black)}
+#toast{position:fixed;bottom:max(5rem,calc(env(safe-area-inset-bottom)+4rem));left:50%;transform:translateX(-50%) translateY(8px);z-index:999;pointer-events:none;background:rgba(8,8,8,.96);border:1px solid var(–gold);padding:.6rem 1.4rem;font-family:‘Rajdhani’;font-weight:500;font-size:.78rem;letter-spacing:.1em;text-transform:uppercase;color:var(–gold-lt);opacity:0;transition:all .3s;white-space:nowrap}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+
+</head>
+<body>
+
+<!-- SPLASH -->
+
+<div id="s-splash" class="screen">
+  <svg class="sp-icon" viewBox="0 0 70 70" fill="none">
+    <circle cx="35" cy="35" r="33" stroke="#C9A84C" stroke-width=".8" stroke-opacity=".2"/>
+    <circle cx="35" cy="18" r="6" stroke="#C9A84C" stroke-width="1.8"/>
+    <line x1="35" y1="24" x2="35" y2="40" stroke="#C9A84C" stroke-width="1.8"/>
+    <line x1="35" y1="30" x2="25" y2="37" stroke="#C9A84C" stroke-width="1.8"/>
+    <line x1="35" y1="30" x2="45" y2="37" stroke="#C9A84C" stroke-width="1.8"/>
+    <line x1="35" y1="40" x2="28" y2="54" stroke="#C9A84C" stroke-width="1.8"/>
+    <line x1="35" y1="40" x2="42" y2="54" stroke="#C9A84C" stroke-width="1.8"/>
+    <circle cx="35" cy="18" r="2.5" fill="#C9A84C" fill-opacity=".4"/>
+  </svg>
+  <h1 class="sp-title">Tonic<em>Carpet</em></h1>
+  <div class="sp-rule"></div>
+  <p class="sp-sub">Votre tapis devient votre coach. Six disciplines. Un seul geste.</p>
+  <button class="sp-btn" onclick="goTo('s-marker')"><span>Commencer</span></button>
+  <div class="sp-hint">iPad · iPhone · ⎙ → Écran d'accueil pour installer</div>
+</div>
+
+<!-- MARQUEUR -->
+
+<div id="s-marker" class="screen hidden">
+  <div class="mk-nav">
+    <button class="mk-back" onclick="goTo('s-splash')">← Retour</button>
+    <div class="mk-s">Étape 1 / 2</div>
+  </div>
+  <div class="mk-title">Votre marqueur</div>
+  <div class="mk-sub">Tonic Carpet · Clé AR</div>
+  <div class="mk-card">
+    <div class="mk-cl">Tonic Carpet · Marqueur AR</div>
+    <svg width="190" height="190" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+      <rect width="200" height="200" fill="white"/>
+      <rect x="6" y="6" width="188" height="188" fill="black"/>
+      <rect x="14" y="14" width="172" height="172" fill="white"/>
+      <rect x="18" y="18" width="42" height="42" fill="black"/><rect x="24" y="24" width="30" height="30" fill="white"/><rect x="29" y="29" width="20" height="20" fill="black"/>
+      <rect x="140" y="18" width="42" height="42" fill="black"/><rect x="146" y="24" width="30" height="30" fill="white"/><rect x="151" y="29" width="20" height="20" fill="black"/>
+      <rect x="18" y="140" width="42" height="42" fill="black"/><rect x="24" y="146" width="30" height="30" fill="white"/><rect x="29" y="151" width="20" height="20" fill="black"/>
+      <rect x="74" y="18" width="8" height="8" fill="black"/><rect x="88" y="18" width="8" height="8" fill="black"/><rect x="110" y="18" width="8" height="8" fill="black"/><rect x="124" y="18" width="8" height="8" fill="black"/>
+      <rect x="18" y="74" width="8" height="8" fill="black"/><rect x="18" y="96" width="8" height="8" fill="black"/><rect x="18" y="118" width="8" height="8" fill="black"/>
+      <rect x="174" y="74" width="8" height="8" fill="black"/><rect x="174" y="96" width="8" height="8" fill="black"/><rect x="174" y="110" width="8" height="8" fill="black"/>
+      <rect x="74" y="174" width="8" height="8" fill="black"/><rect x="96" y="174" width="8" height="8" fill="black"/><rect x="118" y="174" width="8" height="8" fill="black"/>
+      <circle cx="100" cy="74" r="9" fill="black"/><circle cx="100" cy="74" r="4" fill="white"/>
+      <rect x="97" y="83" width="6" height="22" fill="black"/>
+      <rect x="76" y="91" width="24" height="4" fill="black" transform="rotate(-18,76,91)"/>
+      <rect x="100" y="91" width="24" height="4" fill="black" transform="rotate(18,100,91)"/>
+      <rect x="95" y="105" width="5" height="22" fill="black" transform="rotate(-10,95,105)"/>
+      <rect x="100" y="105" width="5" height="22" fill="black" transform="rotate(10,100,105)"/>
+      <text x="100" y="152" text-anchor="middle" font-family="monospace" font-size="6" fill="black" opacity=".45">MACADAM TONIC</text>
+    </svg>
+    <div class="mk-cn">Imprimez en 15×15 cm minimum<br>ou affichez sur un autre écran</div>
+  </div>
+  <div class="mk-steps">
+    <div class="mk-si"><div class="mk-sn">1</div><div class="mk-st"><strong>Imprimez</strong> ce marqueur (A5 minimum) ou affichez-le sur un second écran à plat.</div></div>
+    <div class="mk-si"><div class="mk-sn">2</div><div class="mk-st"><strong>Posez-le</strong> sur votre tapis Tonic Carpet, bien éclairé.</div></div>
+    <div class="mk-si"><div class="mk-sn">3</div><div class="mk-st"><strong>Autorisez</strong> la caméra → pointez l'iPad → les personnages apparaissent.</div></div>
+  </div>
+  <button class="mk-cta" onclick="startAR()"><span>Ouvrir la caméra →</span></button>
+</div>
+
+<!-- AR -->
+
+<div id="s-ar" class="screen hidden">
+  <video id="ar-video" autoplay playsinline muted></video>
+  <canvas id="ar-canvas"></canvas>
+  <div id="ar-hud">
+    <div class="hc tl" id="hc-tl"></div><div class="hc tr" id="hc-tr"></div>
+    <div class="hc bl" id="hc-bl"></div><div class="hc br" id="hc-br"></div>
+  </div>
+  <div id="ar-top">
+    <button class="ar-bk" onclick="stopAR()">← Marqueur</button>
+    <div class="ar-logo">Tonic <em>Carpet</em></div>
+    <div class="ar-st"><div class="ar-dot" id="ar-dot"></div><span id="ar-txt" style="color:rgba(201,168,76,.5)">Scan…</span></div>
+  </div>
+  <div id="ar-badge">Tapis reconnu ✦</div>
+  <div id="ar-timer">00:00</div>
+  <div id="ar-scan">
+    <div class="sb"><div class="sc tl"></div><div class="sc tr"></div><div class="sc bl"></div><div class="sc br"></div><div class="sl"></div></div>
+    <div class="st">Pointez vers le marqueur</div>
+    <div class="sh">Tonic Carpet · Clé de reconnaissance</div>
+  </div>
+  <div id="ar-panel">
+    <div class="zp-ey" id="zp-ey">Zone 01</div>
+    <div class="zp-nm" id="zp-nm">Yoga · Méditation</div>
+    <div class="ztabs">
+      <div class="zt active" onclick="selZ('yoga',this)"><div class="zt-e">🧘</div><div class="zt-n">Yoga</div></div>
+      <div class="zt" onclick="selZ('cardio',this)"><div class="zt-e">🏃</div><div class="zt-n">Cardio</div></div>
+      <div class="zt" onclick="selZ('heart',this)"><div class="zt-e">❤️</div><div class="zt-n">Santé</div></div>
+      <div class="zt" onclick="selZ('strength',this)"><div class="zt-e">💪</div><div class="zt-n">Force</div></div>
+      <div class="zt" onclick="selZ('stretch',this)"><div class="zt-e">🤸</div><div class="zt-n">Stretch</div></div>
+      <div class="zt" onclick="selZ('new',this)"><div class="zt-e">⚡</div><div class="zt-n">Nouveau</div></div>
+    </div>
+    <div class="ex-row" id="ex-row"></div>
+    <div class="ar-btns">
+      <button class="ar-btn" id="tbtn" onclick="toggleTimer()">▶ Timer</button>
+      <button class="ar-btn gold" onclick="openEx()">Détail →</button>
+    </div>
+  </div>
+</div>
+
+<!-- EXERCICE -->
+
+<div id="s-ex" class="screen hidden">
+  <div class="ex-nav">
+    <button class="ex-bk" onclick="goTo('s-ar')">← AR</button>
+    <div class="ex-bdg" id="ex-bdg">Zone</div>
+  </div>
+  <div class="ex-stage">
+    <svg class="sk" width="105" height="158" viewBox="0 0 110 165" id="sk-svg">
+      <circle cx="55" cy="22" r="15" stroke-width="2.2"/>
+      <circle cx="55" cy="22" r="6" style="fill:rgba(201,168,76,.2);stroke:none"/>
+      <line x1="55" y1="37" x2="55" y2="85" stroke-width="2.2"/>
+      <line x1="55" y1="52" x2="26" y2="70" stroke-width="2" id="sk-la"/>
+      <line x1="55" y1="52" x2="84" y2="70" stroke-width="2" id="sk-ra"/>
+      <line x1="55" y1="85" x2="37" y2="126" stroke-width="2" id="sk-ll"/>
+      <line x1="55" y1="85" x2="73" y2="126" stroke-width="2" id="sk-rl"/>
+      <line x1="37" y1="126" x2="26" y2="144" stroke-width="2"/>
+      <line x1="73" y1="126" x2="84" y2="144" stroke-width="2"/>
+      <ellipse cx="55" cy="148" rx="25" ry="4" style="stroke:rgba(201,168,76,.12);stroke-width:1;fill:none"/>
+    </svg>
+  </div>
+  <div class="ex-nm" id="ex-nm">Lotus Assis</div>
+  <div class="ex-mt"><span id="ex-dur">8 MIN</span><span>·</span><span id="ex-lvl">DÉBUTANT</span><span>·</span><span id="ex-mus">SOUPLESSE</span></div>
+  <p class="ex-ds" id="ex-ds">Position lotus. Respiration 4-4-8. Le personnage AR guide votre posture en temps réel.</p>
+  <div class="ex-bars">
+    <div class="eb-r"><div class="eb-l">Calme</div><div class="eb-t"><div class="eb-f" id="eb-calm" style="width:0"></div></div><div class="eb-v" id="ev-calm">—</div></div>
+    <div class="eb-r"><div class="eb-l">Cardio</div><div class="eb-t"><div class="eb-f" id="eb-cardio" style="width:0"></div></div><div class="eb-v" id="ev-cardio">—</div></div>
+    <div class="eb-r"><div class="eb-l">Force</div><div class="eb-t"><div class="eb-f" id="eb-force" style="width:0"></div></div><div class="eb-v" id="ev-force">—</div></div>
+    <div class="eb-r"><div class="eb-l">Souplesse</div><div class="eb-t"><div class="eb-f" id="eb-flex" style="width:0"></div></div><div class="eb-v" id="ev-flex">—</div></div>
+  </div>
+  <div class="ex-ctrl">
+    <div class="cg"><div class="cl">Répétitions</div><div class="cv" id="cv-r">12</div><div class="cbs"><button class="cb" onclick="chg('r',-1)">−</button><button class="cb" onclick="chg('r',1)">+</button></div></div>
+    <div style="width:1px;background:var(--border)"></div>
+    <div class="cg"><div class="cl">Séries</div><div class="cv" id="cv-s">3</div><div class="cbs"><button class="cb" onclick="chg('s',-1)">−</button><button class="cb" onclick="chg('s',1)">+</button></div></div>
+  </div>
+  <button class="ex-go" onclick="goTo('s-ar')"><span>← Retour à l'AR</span></button>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// DATA
+const Z={
+  yoga:{ey:'Zone 01',nm:'Yoga · Méditation',calm:90,cardio:10,force:15,flex:80,ex:[
+    {n:'01',name:'Lotus Assis',desc:'Position lotus, respiration 4-4-8 consciente',dur:'8 MIN',reps:null,lvl:'Débutant',mus:'Souplesse'},
+    {n:'02',name:'Guerrier I',desc:'Bras levés, jambe avant à 90°, maintien 30s',dur:'3×30S',reps:null,lvl:'Intermédiaire',mus:'Force'},
+    {n:'03',name:'Chien Tête en Bas',desc:'Colonne allongée, talons au sol, 5 respirations',dur:'5 MIN',reps:null,lvl:'Débutant',mus:'Étirement'}]},
+  cardio:{ey:'Zone 02',nm:'Cardio · Course',calm:10,cardio:90,force:40,flex:25,ex:[
+    {n:'01',name:'Course en Place',desc:'60 foulées/min, genoux montants, bras actifs',dur:'5 MIN',reps:null,lvl:'Cardio',mus:'Full Body'},
+    {n:'02',name:'Burpee Complet',desc:'Debout → planche → saut, 3 phases distinctes',dur:null,reps:10,lvl:'Avancé',mus:'Full Body'},
+    {n:'03',name:'High Knees',desc:'Genoux à hauteur de hanches, tempo soutenu',dur:'45S',reps:null,lvl:'Intermédiaire',mus:'Jambes'}]},
+  heart:{ey:'Zone 03',nm:'Cardio · Santé',calm:40,cardio:70,force:20,flex:35,ex:[
+    {n:'01',name:'Marche Active',desc:'Zone cardiaque 65-75%, rythme cible maintenu',dur:'20 MIN',reps:null,lvl:'Débutant',mus:'Cardio'},
+    {n:'02',name:'Step Touch',desc:'Pas latéraux rythmés, faible impact articulaire',dur:'10 MIN',reps:null,lvl:'Doux',mus:'Jambes'},
+    {n:'03',name:'Circuit Santé',desc:'6 exercices bas-impact, monitoring continu',dur:'30 MIN',reps:null,lvl:'Intermédiaire',mus:'Full Body'}]},
+  strength:{ey:'Zone 04',nm:'Renforcement',calm:20,cardio:40,force:90,flex:45,ex:[
+    {n:'01',name:'Squat Profond',desc:'90° flexion, dos droit, descente contrôlée',dur:null,reps:12,lvl:'Débutant',mus:'Jambes'},
+    {n:'02',name:'Fente Avant',desc:'Genou à 90°, alternance gauche/droite guidée',dur:null,reps:10,lvl:'Intermédiaire',mus:'Fessiers'},
+    {n:'03',name:'Goblet Squat',desc:'Mains jointes, squat large, adducteurs actifs',dur:null,reps:15,lvl:'Intermédiaire',mus:'Force'}]},
+  stretch:{ey:'Zone 05',nm:'Stretching',calm:60,cardio:10,force:15,flex:95,ex:[
+    {n:'01',name:'Grand Écart Lat.',desc:'Jambes écartées, inclinaison avant progressive',dur:'3×30S',reps:null,lvl:'Intermédiaire',mus:'Hanches'},
+    {n:'02',name:'Étirement Ischio',desc:'Jambe tendue, amplitude guidée progressivement',dur:'2×45S',reps:null,lvl:'Débutant',mus:'Ischios'},
+    {n:'03',name:'Pigeon Yoga',desc:'Hanche ouverte, récupération optimale',dur:'2×60S',reps:null,lvl:'Intermédiaire',mus:'Hanche'}]},
+  new:{ey:'Zone 06',nm:'Jumping Jack',calm:15,cardio:75,force:50,flex:30,ex:[
+    {n:'01',name:'Jumping Jack',desc:'Écart synchronisé bras-jambes, décompte précis',dur:null,reps:50,lvl:'Débutant',mus:'Full Body'},
+    {n:'02',name:'Star Jump',desc:'Variante saut haut, réception souple contrôlée',dur:null,reps:30,lvl:'Intermédiaire',mus:'Explosivité'},
+    {n:'03',name:'Box Jump',desc:'Saut sur place, programme hebdomadaire exclusif',dur:null,reps:15,lvl:'Avancé',mus:'Pliométrie'}]}
+};
+
+let cur='s-splash',zone='yoga',exIdx=0,reps=12,sets=3;
+let tmOn=false,tmSecs=0,tmInt=null;
+let stream=null,rafId=null,canvas2d=null,ctx2d=null;
+
+// NAV
+function goTo(id){
+  document.getElementById(cur).classList.add('hidden');
+  document.getElementById(id).classList.remove('hidden');
+  cur=id;
+}
+
+// AR START — getUserMedia direct, le plus compatible Safari
+async function startAR(){
+  goTo('s-ar');
+  renderPanel('yoga');
+  try {
+    stream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},
+      audio:false
+    });
+    const video=document.getElementById('ar-video');
+    video.srcObject=stream;
+    await video.play();
+
+    // Canvas pour overlay stickmen
+    const canvas=document.getElementById('ar-canvas');
+    const ctx=canvas.getContext('2d');
+
+    const resize=()=>{
+      canvas.width=window.innerWidth;
+      canvas.height=window.innerHeight;
+    };
+    resize();
+    window.addEventListener('resize',resize);
+
+    // Canvas 2D pour analyse image (détection marqueur simplifiée)
+    canvas2d=document.createElement('canvas');
+    ctx2d=canvas2d.getContext('2d',{willReadFrequently:true});
+
+    // Démarrer détection + rendu
+    let detected=false, detTime=0;
+    const ZONES_POS=[
+      {x:.5,y:.18},{x:.3,y:.38},{x:.7,y:.38},
+      {x:.3,y:.62},{x:.7,y:.62},{x:.5,y:.82}
+    ];
+    const ZONE_KEYS=['yoga','cardio','heart','strength','stretch','new'];
+    const ZONE_COLORS=['#C9A84C','#E8C97A','#C9A84C','#C9A84C','#C9A84C','#E8C97A'];
+
+    let t=0;
+    const draw=()=>{
+      rafId=requestAnimationFrame(draw);
+      if(cur!=='s-ar') return;
+      t+=0.025;
+      canvas.width=window.innerWidth;
+      canvas.height=window.innerHeight;
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+
+      // Détection marqueur: analyser frame
+      if(video.readyState>=2){
+        canvas2d.width=80; canvas2d.height=80;
+        ctx2d.drawImage(video,0,0,80,80);
+        const data=ctx2d.getImageData(0,0,80,80).data;
+        // Contraste noir/blanc: chercher zones très sombres + très claires
+        let dark=0,light=0;
+        for(let i=0;i<data.length;i+=4){
+          const lum=.299*data[i]+.587*data[i+1]+.114*data[i+2];
+          if(lum<40) dark++;
+          else if(lum>200) light++;
+        }
+        const total=80*80;
+        const hasBoth=(dark/total>.15)&&(light/total>.25);
+        const contrast=Math.abs(dark-light)/total;
+        if(hasBoth && contrast>.05){
+          if(!detected){ detected=true; onDetected(); }
+          detTime=Date.now();
+        } else if(Date.now()-detTime>1500 && detected){
+          detected=false; onLost();
+        }
+      }
+
+      if(!detected) return;
+
+      // Dessiner 6 stickmen animés
+      const W=canvas.width, H=canvas.height;
+      ZONES_POS.forEach((pos,i)=>{
+        const x=pos.x*W, y=pos.y*H;
+        const col=ZONE_COLORS[i];
+        const offset=Math.sin(t+i*1.1)*5;
+        drawStickman(ctx,x,y+offset,col,t+i*0.7,i);
+      });
+    };
+    draw();
+
+  } catch(err){
+    console.error(err);
+    if(err.name==='NotAllowedError'){
+      toast('Autorisation caméra refusée');
+    } else {
+      toast('Caméra indisponible');
+    }
+    goTo('s-marker');
+  }
+}
+
+// Dessiner un stickman doré sur canvas 2D
+function drawStickman(ctx,cx,cy,color,t,zoneIdx){
+  const s=50; // scale
+  ctx.strokeStyle=color;
+  ctx.lineWidth=3;
+  ctx.lineCap='round';
+  ctx.shadowColor=color;
+  ctx.shadowBlur=12;
+
+  const heads=cy-s*.8;
+  const bodyt=cy-s*.45;
+  const bodyb=cy+s*.1;
+  const army=cy-s*.3;
+
+  // Aura
+  ctx.beginPath();
+  ctx.arc(cx,cy+s*.55,s*.35,0,Math.PI*2);
+  ctx.strokeStyle=color.replace(')',',0.12)').replace('rgb','rgba').replace('#C9A84C','rgba(201,168,76,0.12)').replace('#E8C97A','rgba(232,201,122,0.12)');
+  ctx.lineWidth=1;
+  ctx.stroke();
+  ctx.strokeStyle=color; ctx.lineWidth=3;
+
+  // Tête
+  ctx.beginPath(); ctx.arc(cx,heads,s*.2,0,Math.PI*2); ctx.stroke();
+
+  // Corps
+  ctx.beginPath(); ctx.moveTo(cx,bodyt); ctx.lineTo(cx,bodyb); ctx.stroke();
+
+  // Bras (animés)
+  const armSwing=Math.sin(t)*0.3;
+  // Bras G
+  ctx.beginPath();
+  ctx.moveTo(cx,army);
+  ctx.lineTo(cx-s*.5+Math.sin(t+Math.PI)*s*.1, army+s*.3+armSwing*s*.2);
+  ctx.stroke();
+  // Bras D
+  ctx.beginPath();
+  ctx.moveTo(cx,army);
+  ctx.lineTo(cx+s*.5+Math.sin(t)*s*.1, army+s*.3-armSwing*s*.2);
+  ctx.stroke();
+
+  // Jambes (animées selon zone)
+  const legSwing=getAnimForZone(zoneIdx,t);
+  // Jambe G
+  ctx.beginPath();
+  ctx.moveTo(cx,bodyb);
+  ctx.lineTo(cx-s*.25+legSwing*s*.3, cy+s*.6);
+  ctx.stroke();
+  // Jambe D
+  ctx.beginPath();
+  ctx.moveTo(cx,bodyb);
+  ctx.lineTo(cx+s*.25-legSwing*s*.3, cy+s*.6);
+  ctx.stroke();
+
+  // Glow sous les pieds
+  ctx.shadowBlur=0;
+  ctx.beginPath();
+  const grad=ctx.createRadialGradient(cx,cy+s*.65,0,cx,cy+s*.65,s*.35);
+  grad.addColorStop(0,color.includes('E8C97A')?'rgba(232,201,122,0.3)':'rgba(201,168,76,0.3)');
+  grad.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=grad;
+  ctx.ellipse(cx,cy+s*.65,s*.35,s*.1,0,0,Math.PI*2);
+  ctx.fill();
+  ctx.shadowBlur=12;
+
+  // Label zone
+  ctx.shadowBlur=0;
+  ctx.fillStyle=color;
+  ctx.font='bold '+(s*.22)+'px "DM Mono",monospace';
+  ctx.textAlign='center';
+  ctx.fillText(getLabel(zoneIdx),cx,heads-s*.35);
+  ctx.shadowBlur=12;
+}
+
+function getAnimForZone(i,t){
+  // 0=yoga, 1=cardio, 2=heart, 3=squat, 4=stretch, 5=jack
+  const sp=[0.5,2.2,0.8,1.2,0.6,2.5];
+  return Math.sin(t*sp[i]);
+}
+function getLabel(i){
+  return['YOGA','CARDIO','SANTÉ','SQUAT','STRETCH','JACK'][i];
+}
+
+function onDetected(){
+  document.getElementById('ar-dot').classList.add('on');
+  document.getElementById('ar-txt').textContent='Reconnu';
+  document.getElementById('ar-txt').style.color='var(--gold)';
+  document.getElementById('ar-scan').classList.add('hide');
+  document.getElementById('ar-panel').classList.add('show');
+  document.getElementById('ar-badge').classList.add('show');
+  document.getElementById('ar-timer').classList.add('show');
+  ['hc-tl','hc-tr','hc-bl','hc-br'].forEach(i=>document.getElementById(i).classList.add('on'));
+  toast('Tapis reconnu ✦');
+  if(navigator.vibrate) navigator.vibrate([80,40,80]);
+  setTimeout(()=>document.getElementById('ar-badge').classList.remove('show'),3000);
+}
+function onLost(){
+  document.getElementById('ar-dot').classList.remove('on');
+  document.getElementById('ar-txt').textContent='Scan…';
+  document.getElementById('ar-txt').style.color='rgba(201,168,76,.5)';
+  document.getElementById('ar-scan').classList.remove('hide');
+  ['hc-tl','hc-tr','hc-bl','hc-br'].forEach(i=>document.getElementById(i).classList.remove('on'));
+}
+
+function stopAR(){
+  if(stream) stream.getTracks().forEach(t=>t.stop());
+  if(rafId) cancelAnimationFrame(rafId);
+  stream=null; rafId=null;
+  document.getElementById('ar-video').srcObject=null;
+  document.getElementById('ar-panel').classList.remove('show');
+  document.getElementById('ar-scan').classList.remove('hide');
+  onLost();
+  goTo('s-marker');
+}
+
+// ZONE
+function selZ(id,el){
+  zone=id; exIdx=0;
+  document.querySelectorAll('.zt').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  const z=Z[id];
+  document.getElementById('zp-ey').textContent=z.ey;
+  document.getElementById('zp-nm').textContent=z.nm;
+  renderPanel(id);
+  toast(z.nm);
+}
+
+function renderPanel(id){
+  const z=Z[id];
+  document.getElementById('ex-row').innerHTML=z.ex.map((e,i)=>`
+    <div class="ex-c ${i===0?'active':''}" onclick="pickEx(${i},this)">
+      <div class="ec-n">${e.n}</div>
+      <div class="ec-nm">${e.name}</div>
+      <div class="ec-d">${e.desc}</div>
+      <div class="ec-tg"><span class="ec-t">${e.dur||e.reps+' REPS'}</span><span class="ec-t">${e.lvl}</span></div>
+    </div>`).join('');
+}
+
+function pickEx(i,el){
+  exIdx=i;
+  document.querySelectorAll('.ex-c').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// DETAIL
+function openEx(){
+  const z=Z[zone],e=z.ex[exIdx];
+  document.getElementById('ex-bdg').textContent=z.ey+' · '+e.lvl;
+  document.getElementById('ex-nm').textContent=e.name;
+  document.getElementById('ex-dur').textContent=e.dur||e.reps+' REPS';
+  document.getElementById('ex-lvl').textContent=e.lvl.toUpperCase();
+  document.getElementById('ex-mus').textContent=e.mus.toUpperCase();
+  document.getElementById('ex-ds').textContent=e.desc+'. Le personnage AR guide chaque mouvement en temps réel.';
+  setTimeout(()=>{
+    setB('eb-calm','ev-calm',z.calm);
+    setB('eb-cardio','ev-cardio',z.cardio);
+    setB('eb-force','ev-force',z.force);
+    setB('eb-flex','ev-flex',z.flex);
+  },80);
+  goTo('s-ex');
+}
+function setB(bi,vi,v){document.getElementById(bi).style.width=v+'%';document.getElementById(vi).textContent=v+'%';}
+
+// TIMER
+function toggleTimer(){
+  tmOn=!tmOn;
+  const b=document.getElementById('tbtn');
+  if(tmOn){
+    b.textContent='⏸ Pause';
+    tmInt=setInterval(()=>{tmSecs++;document.getElementById('ar-timer').textContent=String(Math.floor(tmSecs/60)).padStart(2,'0')+':'+String(tmSecs%60).padStart(2,'0');},1000);
+  } else {b.textContent='▶ Timer';clearInterval(tmInt);}
+}
+
+function chg(t,d){
+  if(t==='r'){reps=Math.max(1,Math.min(50,reps+d));document.getElementById('cv-r').textContent=reps;}
+  else{sets=Math.max(1,Math.min(10,sets+d));document.getElementById('cv-s').textContent=sets;}
+}
+
+let tt;
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),2200);
+}
+</script>
+
+</body>
+</html>
