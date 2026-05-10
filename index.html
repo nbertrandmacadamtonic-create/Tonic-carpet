@@ -1,1 +1,572 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Tonic Carpet">
+<meta name="theme-color" content="#071f25">
+<title>Tonic Carpet — Ancrage strict</title>
+
+<style>
+:root{--cyan:#70f5e8;--dark:#061f25}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:#061f25;color:white;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif}
+.screen{position:absolute;inset:0;display:none}
+.screen.active{display:block}
+#home{padding:28px;background:radial-gradient(circle at 50% 15%,rgba(112,245,232,.25),transparent 34%),linear-gradient(180deg,#8fcfca 0%,#477896 55%,#102e3a 100%);overflow:auto}
+.logo{font-size:44px;line-height:.86;font-weight:800;color:#4a6f8b;letter-spacing:-2px;margin-top:20px}
+.logo span{display:block;font-weight:300}
+.card{margin-top:34px;background:rgba(255,255,255,.92);color:#153a43;border-radius:28px;padding:22px;box-shadow:0 22px 50px rgba(0,0,0,.22)}
+.card h1{font-size:30px;line-height:1.05;margin:0 0 10px}
+.card p{font-size:16px;line-height:1.42;color:#365b63}
+button{font:inherit}
+.primary,.secondary{width:100%;border:0;border-radius:18px;padding:17px;margin-top:12px;font-size:17px;font-weight:800}
+.primary{background:#071f25;color:white}
+.secondary{background:rgba(255,255,255,.92);color:#143b44}
+#ar{background:#000}
+video,canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+#scanCanvas{display:none}
+#overlay{z-index:3;pointer-events:none}
+#touchLayer{position:absolute;inset:0;z-index:8}
+.topbar{position:absolute;top:0;left:0;right:0;z-index:20;padding:calc(env(safe-area-inset-top) + 12px) 16px 16px;display:flex;justify-content:space-between;align-items:center;background:linear-gradient(180deg,rgba(0,0,0,.78),transparent)}
+.back{border:0;background:rgba(255,255,255,.14);color:white;border-radius:999px;padding:10px 13px;font-weight:800}
+.status{display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.48);padding:10px 12px;border-radius:999px;font-size:13px}
+.dot{width:8px;height:8px;border-radius:50%;background:#777}
+.dot.on{background:var(--cyan);box-shadow:0 0 14px var(--cyan)}
+.panel{position:absolute;left:14px;right:14px;bottom:calc(env(safe-area-inset-bottom) + 16px);z-index:20;background:rgba(0,0,0,.64);backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.12);border-radius:24px;padding:16px}
+.panel h2{margin:0 0 6px;font-size:20px}
+.panel p{margin:0;color:rgba(255,255,255,.78);font-size:14px;line-height:1.36}
+.mini{display:flex;gap:8px;margin-top:12px}
+.mini button{flex:1;border:0;border-radius:14px;padding:12px;font-weight:800;background:var(--cyan);color:#06282e}
+.mini button.dark{background:rgba(255,255,255,.15);color:white}
+.debug{position:absolute;left:14px;top:calc(env(safe-area-inset-top) + 74px);z-index:21;font-family:monospace;font-size:11px;background:rgba(0,0,0,.48);padding:8px;border-radius:12px;color:#c8fff8;display:none}
+.debug.show{display:block}
+.scanHint{position:absolute;z-index:5;top:50%;left:50%;transform:translate(-50%,-50%);width:62vw;max-width:300px;height:68vh;border:2px dashed rgba(112,245,232,.55);border-radius:26px;box-shadow:0 0 30px rgba(112,245,232,.18);pointer-events:none}
+.scanHint.hidden{display:none}
+.line{position:absolute;left:8%;right:8%;height:2px;background:var(--cyan);box-shadow:0 0 16px var(--cyan);animation:scan 2.4s infinite}
+@keyframes scan{0%{top:8%}50%{top:90%}100%{top:8%}}
+.toast{position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom) + 155px);transform:translateX(-50%) translateY(12px);z-index:30;background:rgba(0,0,0,.82);border:1px solid rgba(112,245,232,.45);color:white;padding:12px 16px;border-radius:999px;opacity:0;transition:.25s;font-weight:800;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+
+<body>
+
+<section id="home" class="screen active">
+  <div class="logo">tonic<span>carpet</span></div>
+  <div class="card">
+    <h1>Ancrage strict sur zones</h1>
+    <p>
+      Cette version affiche uniquement les boutons dont la zone est réellement détectée.
+      Elle classe les cercles par rangées gauche/droite pour éviter les inversions Yoga/Sport/Cardio.
+    </p>
+    <button class="primary" onclick="startAR()">Ouvrir la caméra</button>
+    <button class="secondary" onclick="demoMode()">Démo sans caméra</button>
+  </div>
+</section>
+
+<section id="ar" class="screen">
+  <video id="video" autoplay playsinline muted></video>
+  <canvas id="scanCanvas"></canvas>
+  <canvas id="overlay"></canvas>
+  <div id="touchLayer"></div>
+
+  <div class="scanHint" id="scanHint"><div class="line"></div></div>
+
+  <div class="topbar">
+    <button class="back" onclick="stopAR()">← Retour</button>
+    <div class="status"><span class="dot" id="dot"></span><span id="statusTxt">Recherche zones</span></div>
+  </div>
+
+  <div class="debug" id="debug"></div>
+  <div class="toast" id="toast">Zone activée</div>
+
+  <div class="panel">
+    <h2 id="title">Placez le tapis dans l’image</h2>
+    <p id="msg">Les boutons apparaissent seulement sur les zones correctement reconnues.</p>
+    <div class="mini">
+      <button onclick="forceOverlay()">Forcer les boutons</button>
+      <button class="dark" onclick="toggleDebug()">Debug</button>
+    </div>
+  </div>
+</section>
+
+<script>
+const video=document.getElementById("video");
+const scanCanvas=document.getElementById("scanCanvas");
+const scanCtx=scanCanvas.getContext("2d",{willReadFrequently:true});
+const overlay=document.getElementById("overlay");
+const ctx=overlay.getContext("2d");
+const touchLayer=document.getElementById("touchLayer");
+const dot=document.getElementById("dot");
+const statusTxt=document.getElementById("statusTxt");
+const title=document.getElementById("title");
+const msg=document.getElementById("msg");
+const debugEl=document.getElementById("debug");
+const scanHint=document.getElementById("scanHint");
+const toastEl=document.getElementById("toast");
+
+let stream=null,raf=null,debug=false,forced=false,activeZone=null,currentButtons=[];
+let lastAnchors=null,stable=0,lastRawCount=0,lastExcludedCount=0,lastUsefulCount=0;
+
+const BUTTONS={
+  yoga:{id:"yoga",label:"Yoga",icon:"🧘"},
+  sport:{id:"sport",label:"Sport",icon:"🏃"},
+  cardio:{id:"cardio",label:"Cardio",icon:"❤"},
+  abdos:{id:"abdos",label:"Abdos",icon:"💪"},
+  medit:{id:"medit",label:"Médit.",icon:"☯"},
+  plus:{id:"plus",label:"+",icon:"+"}
+};
+
+function show(id){document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));document.getElementById(id).classList.add("active")}
+function fitCanvas(){overlay.width=innerWidth*devicePixelRatio;overlay.height=innerHeight*devicePixelRatio;overlay.style.width=innerWidth+"px";overlay.style.height=innerHeight+"px";ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0)}
+addEventListener("resize",fitCanvas);fitCanvas();
+
+async function startAR(){
+  show("ar");fitCanvas();
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1280},height:{ideal:720}},audio:false});
+    video.srcObject=stream;await video.play();loop();
+  }catch(e){
+    title.textContent="Caméra non disponible";
+    msg.textContent="Sur iPhone, ouvre cette page en HTTPS et autorise la caméra dans Safari.";
+  }
+}
+
+function stopAR(){
+  if(raf)cancelAnimationFrame(raf);
+  if(stream)stream.getTracks().forEach(t=>t.stop());
+  stream=null;forced=false;activeZone=null;currentButtons=[];lastAnchors=null;stable=0;show("home");
+}
+
+function demoMode(){show("ar");forced=true;fitCanvas();loop()}
+function forceOverlay(){forced=!forced;toast(forced?"Boutons forcés":"Détection réactivée")}
+function toggleDebug(){debug=!debug;debugEl.classList.toggle("show",debug)}
+
+function rgbToHsv(r,g,b){
+  r/=255;g/=255;b/=255;
+  let max=Math.max(r,g,b),min=Math.min(r,g,b),h=0,s,v=max,d=max-min;
+  s=max===0?0:d/max;
+  if(max!==min){
+    switch(max){
+      case r:h=(g-b)/d+(g<b?6:0);break;
+      case g:h=(b-r)/d+2;break;
+      case b:h=(r-g)/d+4;break;
+    }
+    h*=60;
+  }
+  return[h,s,v];
+}
+
+/* Un peu plus tolérant que la version précédente */
+function isWhiteLine(r,g,b){
+  const[h,s,v]=rgbToHsv(r,g,b);
+  return v>.62 && s<.46 && Math.abs(r-g)<72 && Math.abs(g-b)<72;
+}
+
+function analyze(){
+  if(forced){
+    return{
+      ok:true,
+      anchors:{
+        yoga:{x:innerWidth*.50,y:innerHeight*.18,r:52},
+        sport:{x:innerWidth*.30,y:innerHeight*.38,r:56},
+        cardio:{x:innerWidth*.70,y:innerHeight*.38,r:56},
+        abdos:{x:innerWidth*.30,y:innerHeight*.64,r:56},
+        medit:{x:innerWidth*.70,y:innerHeight*.64,r:56},
+        plus:{x:innerWidth*.50,y:innerHeight*.82,r:62}
+      },
+      useful:[],excluded:[]
+    };
+  }
+
+  if(video.readyState<2)return null;
+
+  const sw=260,sh=455;
+  scanCanvas.width=sw;scanCanvas.height=sh;
+  scanCtx.drawImage(video,0,0,sw,sh);
+  const img=scanCtx.getImageData(0,0,sw,sh),d=img.data;
+  const mask=new Uint8Array(sw*sh);
+
+  for(let y=0;y<sh;y++){
+    for(let x=0;x<sw;x++){
+      const i=(y*sw+x)*4;
+      if(isWhiteLine(d[i],d[i+1],d[i+2]))mask[y*sw+x]=1;
+    }
+  }
+
+  const blobs=findBlobs(mask,sw,sh);
+  const screenBlobs=toScreenBlobs(blobs,sw,sh);
+
+  let circles=screenBlobs.filter(b=>{
+    const ratio=b.w/b.h;
+    return b.count>16 && b.r>12 && b.w<innerWidth*.48 && b.h<innerHeight*.25 && ratio>.40 && ratio<2.45;
+  });
+
+  circles=fuseCloseCircles(circles);
+  lastRawCount=circles.length;
+
+  if(circles.length<3)return{ok:false,anchors:null,useful:[],excluded:[],raw:screenBlobs};
+
+  const classified=classifyByRows(circles);
+  lastExcludedCount=classified.excluded.length;
+  lastUsefulCount=classified.useful.length;
+
+  return{
+    ok:Object.keys(classified.anchors).length>=3,
+    anchors:classified.anchors,
+    useful:classified.useful,
+    excluded:classified.excluded,
+    raw:screenBlobs
+  };
+}
+
+function findBlobs(mask,sw,sh){
+  const visited=new Uint8Array(sw*sh),blobs=[],qx=[],qy=[];
+  for(let y=2;y<sh-2;y++){
+    for(let x=2;x<sw-2;x++){
+      const idx=y*sw+x;
+      if(!mask[idx]||visited[idx])continue;
+      let minx=x,maxx=x,miny=y,maxy=y,count=0;
+      qx.length=0;qy.length=0;qx.push(x);qy.push(y);visited[idx]=1;
+
+      for(let qi=0;qi<qx.length;qi++){
+        const cx=qx[qi],cy=qy[qi];count++;
+        if(cx<minx)minx=cx;if(cx>maxx)maxx=cx;if(cy<miny)miny=cy;if(cy>maxy)maxy=cy;
+        const nbs=[[1,0],[-1,0],[0,1],[0,-1]];
+        for(const[dx,dy]of nbs){
+          const nx=cx+dx,ny=cy+dy,ni=ny*sw+nx;
+          if(nx<2||nx>=sw-2||ny<2||ny>=sh-2)continue;
+          if(visited[ni]||!mask[ni])continue;
+          visited[ni]=1;qx.push(nx);qy.push(ny);
+        }
+      }
+
+      const bw=maxx-minx+1,bh=maxy-miny+1;
+      if(count>8&&bw>4&&bh>4){
+        blobs.push({x:(minx+maxx)/2,y:(miny+maxy)/2,w:bw,h:bh,r:Math.max(bw,bh)/2,count});
+      }
+    }
+  }
+  blobs.sort((a,b)=>b.count-a.count);
+  return blobs.slice(0,110);
+}
+
+function toScreenBlobs(blobs,sw,sh){
+  const sx=innerWidth/sw,sy=innerHeight/sh;
+  return blobs.map(c=>({...c,x:c.x*sx,y:c.y*sy,w:c.w*sx,h:c.h*sy,r:Math.max(c.r*sx,c.r*sy)}));
+}
+
+function fuseCloseCircles(circles){
+  const sorted=[...circles].sort((a,b)=>b.count-a.count);
+  const fused=[];
+  for(const c of sorted){
+    if(!fused.some(f=>Math.hypot(f.x-c.x,f.y-c.y)<Math.max(24,c.r*.70))){
+      fused.push(c);
+    }
+  }
+  return fused;
+}
+
+/*
+  Nouvelle classification :
+  1. On estime l'axe par les paires gauche/droite, pas par la médiane brute.
+  2. On exclut le tigre uniquement si vraiment central et au milieu.
+  3. On classe les rangées : haut = yoga, première paire = sport/cardio, seconde paire = abdos/medit, bas central = plus.
+  4. Si une zone n'est pas sûre, elle n'est pas affichée.
+*/
+function classifyByRows(circles){
+  const sorted=[...circles].sort((a,b)=>a.y-b.y);
+  const minY=sorted[0].y,maxY=sorted[sorted.length-1].y,h=Math.max(1,maxY-minY);
+
+  let axisX=estimateAxisFromPairs(sorted);
+  const excluded=[];
+  let candidates=[];
+
+  for(const c of sorted){
+    const rel=(c.y-minY)/h;
+    const nearCenter=Math.abs(c.x-axisX)<innerWidth*.085;
+
+    /* PSA ou petit rond bas extrême */
+    if(rel>.92){
+      excluded.push({...c,type:"psa"});
+      continue;
+    }
+
+    /* Tigre central : seuil plus serré, pour ne plus virer Abdos par erreur */
+    if(nearCenter && rel>.42 && rel<.62){
+      excluded.push({...c,type:"tigre"});
+      continue;
+    }
+
+    candidates.push(c);
+  }
+
+  /* on retire seulement les micro-repères, pas les vrais cercles */
+  const avgR=candidates.length?candidates.reduce((s,c)=>s+c.r,0)/candidates.length:0;
+  candidates=candidates.filter(c=>c.r>Math.max(15,avgR*.45));
+
+  const rows=clusterRows(candidates);
+  const anchors={};
+
+  if(!rows.length)return{useful:candidates,excluded,anchors};
+
+  /*
+    Yoga : rangée haute si elle contient un cercle central.
+    Sinon, on ne met pas Yoga.
+  */
+  const topRow=rows[0];
+  if(topRow){
+    const centralTop=nearestToAxis(topRow.items,axisX);
+    const rowRel=(topRow.y-minY)/h;
+    if(centralTop && Math.abs(centralTop.x-axisX)<innerWidth*.18 && rowRel<.25){
+      anchors.yoga=centralTop;
+    }
+  }
+
+  /*
+    Paires gauche/droite :
+    on parcourt les rangées restantes, chaque paire devient :
+    1ère paire = Sport/Cardio
+    2e paire = Abdos/Médit.
+  */
+  const pairRows=rows
+    .filter(r=>r.items.length>=2)
+    .filter(r=>{
+      const rel=(r.y-minY)/h;
+      return rel>.18 && rel<.86;
+    })
+    .sort((a,b)=>a.y-b.y);
+
+  if(pairRows[0]){
+    const pair=leftRight(pairRows[0].items,axisX);
+    if(pair.left)anchors.sport=pair.left;
+    if(pair.right)anchors.cardio=pair.right;
+  }
+
+  if(pairRows[1]){
+    const pair=leftRight(pairRows[1].items,axisX);
+    if(pair.left)anchors.abdos=pair.left;
+    if(pair.right)anchors.medit=pair.right;
+  }
+
+  /*
+    Plus : le cercle central le plus bas, mais pas PSA.
+  */
+  const plusCandidates=candidates
+    .filter(c=>Math.abs(c.x-axisX)<innerWidth*.20)
+    .filter(c=>(c.y-minY)/h>.68)
+    .sort((a,b)=>b.y-a.y);
+
+  if(plusCandidates[0])anchors.plus=plusCandidates[0];
+
+  return{useful:candidates,excluded,anchors};
+}
+
+function estimateAxisFromPairs(circles){
+  const rows=clusterRows(circles);
+  const centers=[];
+
+  for(const r of rows){
+    if(r.items.length>=2){
+      const xs=r.items.map(i=>i.x).sort((a,b)=>a-b);
+      const left=xs[0],right=xs[xs.length-1];
+      if(right-left>innerWidth*.16){
+        centers.push((left+right)/2);
+      }
+    }
+  }
+
+  if(centers.length){
+    return median(centers);
+  }
+
+  return median(circles.map(c=>c.x));
+}
+
+function clusterRows(items){
+  const sorted=[...items].sort((a,b)=>a.y-b.y);
+  const rows=[];
+  const threshold=innerHeight*.055;
+
+  for(const c of sorted){
+    let row=rows.find(r=>Math.abs(r.y-c.y)<threshold);
+    if(!row){
+      row={y:c.y,items:[]};
+      rows.push(row);
+    }
+    row.items.push(c);
+    row.y=row.items.reduce((s,i)=>s+i.y,0)/row.items.length;
+  }
+
+  rows.forEach(r=>r.items.sort((a,b)=>a.x-b.x));
+  rows.sort((a,b)=>a.y-b.y);
+  return rows;
+}
+
+function nearestToAxis(items,axisX){
+  return [...items].sort((a,b)=>Math.abs(a.x-axisX)-Math.abs(b.x-axisX))[0];
+}
+
+function leftRight(items,axisX){
+  const left=items.filter(i=>i.x<axisX).sort((a,b)=>Math.abs(b.x-axisX)-Math.abs(a.x-axisX))[0] || null;
+  const right=items.filter(i=>i.x>=axisX).sort((a,b)=>Math.abs(b.x-axisX)-Math.abs(a.x-axisX))[0] || null;
+  return{left,right};
+}
+
+function median(arr){
+  const a=[...arr].sort((x,y)=>x-y);
+  return a[Math.floor(a.length/2)]||innerWidth/2;
+}
+
+function smoothAnchors(oldA,newA){
+  if(!oldA)return newA;
+  const k=.24,out={};
+
+  for(const id of Object.keys(newA)){
+    const n=newA[id],o=oldA[id];
+    if(!o){out[id]=n}
+    else{
+      out[id]={...n,x:o.x*(1-k)+n.x*k,y:o.y*(1-k)+n.y*k,r:o.r*(1-k)+n.r*k};
+    }
+  }
+
+  return out;
+}
+
+function loop(){
+  raf=requestAnimationFrame(loop);
+  ctx.clearRect(0,0,innerWidth,innerHeight);
+  currentButtons=[];
+
+  const res=analyze();
+  if(!res)return;
+
+  if(res.ok&&res.anchors){
+    stable++;
+    lastAnchors=smoothAnchors(lastAnchors,res.anchors);
+  }else{
+    stable=Math.max(0,stable-1);
+  }
+
+  const recognized=forced||(stable>4&&lastAnchors&&Object.keys(lastAnchors).length>=3);
+
+  if(recognized){
+    setRecognized(true,Object.keys(lastAnchors).length);
+    drawAnchoredButtons(lastAnchors);
+  }else{
+    setRecognized(false,0);
+  }
+
+  if(debug){
+    debugEl.innerHTML=
+      "cercles détectés : "+lastRawCount+"<br>"+
+      "cercles utiles : "+lastUsefulCount+"<br>"+
+      "boutons ancrés : "+(lastAnchors?Object.keys(lastAnchors).length:0)+"<br>"+
+      "exclus : "+lastExcludedCount+"<br>"+
+      "stable : "+stable+"<br>"+
+      "mode : rangées strictes";
+
+    (res.useful||[]).forEach(c=>drawDebugCircle(c,"rgba(0,255,120,.9)"));
+    (res.excluded||[]).forEach(c=>drawDebugCircle(c,"rgba(255,60,60,.9)"));
+    if(lastAnchors)Object.values(lastAnchors).forEach(c=>drawDebugCircle(c,"rgba(255,255,0,.9)"));
+  }
+}
+
+function setRecognized(on,count){
+  dot.classList.toggle("on",on);
+  scanHint.classList.toggle("hidden",on);
+  statusTxt.textContent=on?"Zones reconnues":"Recherche zones";
+  title.textContent=on?"Boutons ancrés":"Placez le tapis dans l’image";
+  msg.textContent=on
+    ?"Les boutons affichés correspondent aux zones réellement reconnues."
+    :"Visez les cercles utiles du tapis. Aucun bouton n’est inventé si la zone n’est pas sûre.";
+}
+
+function drawAnchoredButtons(anchors){
+  for(const id of Object.keys(BUTTONS)){
+    const def=BUTTONS[id],a=anchors[id];
+    if(!a)continue;
+    const r=clamp(a.r*1.10,42,82);
+    const isActive=activeZone===id;
+    draw3DButton(a.x,a.y,r,def,isActive);
+    currentButtons.push({id:def.id,label:def.label,x:a.x,y:a.y-r*.32,r:r*1.25});
+  }
+}
+
+function draw3DButton(x,y,r,z,isActive){
+  const t=performance.now()/1000;
+  const pulse=isActive?1.15:1+Math.sin(t*2+x*.01)*.025;
+  const lift=isActive?r*.45:r*.32;
+  ctx.save();ctx.translate(x,y);ctx.scale(pulse,pulse);
+
+  const shadow=ctx.createRadialGradient(0,r*.42,0,0,r*.42,r*1.28);
+  shadow.addColorStop(0,"rgba(0,0,0,.50)");
+  shadow.addColorStop(.45,"rgba(0,0,0,.22)");
+  shadow.addColorStop(1,"rgba(0,0,0,0)");
+  ctx.fillStyle=shadow;ctx.beginPath();ctx.ellipse(0,r*.54,r*1.12,r*.34,0,0,Math.PI*2);ctx.fill();
+
+  const beam=ctx.createLinearGradient(0,-lift,0,r*.36);
+  beam.addColorStop(0,"rgba(112,245,232,.40)");
+  beam.addColorStop(.45,"rgba(112,245,232,.13)");
+  beam.addColorStop(1,"rgba(112,245,232,0)");
+  ctx.fillStyle=beam;ctx.beginPath();
+  ctx.moveTo(-r*.58,-lift*.12);ctx.lineTo(r*.58,-lift*.12);ctx.lineTo(r*.92,r*.42);ctx.lineTo(-r*.92,r*.42);
+  ctx.closePath();ctx.fill();
+
+  ctx.beginPath();ctx.ellipse(0,r*.36,r*.96,r*.27,0,0,Math.PI*2);
+  ctx.fillStyle="rgba(28,199,192,.34)";ctx.fill();
+  ctx.lineWidth=2;ctx.strokeStyle="rgba(112,245,232,.82)";ctx.stroke();
+
+  ctx.shadowColor="#70f5e8";ctx.shadowBlur=isActive?35:22;
+  const face=ctx.createRadialGradient(-r*.28,-lift-r*.35,r*.10,0,-lift,r);
+  face.addColorStop(0,"rgba(255,255,255,.82)");
+  face.addColorStop(.22,"rgba(112,245,232,.70)");
+  face.addColorStop(.58,"rgba(28,199,192,.78)");
+  face.addColorStop(1,"rgba(2,74,86,.95)");
+  ctx.beginPath();ctx.arc(0,-lift,r,0,Math.PI*2);ctx.fillStyle=face;ctx.fill();
+  ctx.lineWidth=3;ctx.strokeStyle=isActive?"rgba(255,255,255,.98)":"rgba(112,245,232,.98)";ctx.stroke();
+
+  ctx.shadowBlur=0;
+  ctx.beginPath();ctx.ellipse(-r*.22,-lift-r*.30,r*.42,r*.15,-.25,0,Math.PI*2);
+  ctx.fillStyle="rgba(255,255,255,.40)";ctx.fill();
+
+  ctx.beginPath();ctx.arc(0,-lift,r*.72,0,Math.PI*2);
+  ctx.strokeStyle="rgba(255,255,255,.36)";ctx.lineWidth=1.5;ctx.stroke();
+
+  ctx.fillStyle="white";ctx.textAlign="center";ctx.textBaseline="middle";
+  ctx.font=z.icon==="+"?"900 "+(r*.92)+"px -apple-system":"800 "+(r*.50)+"px -apple-system";
+  ctx.fillText(z.icon,0,-lift-r*.10);
+  ctx.font="900 "+Math.max(11,r*.20)+"px -apple-system";
+  ctx.fillText(z.label,0,-lift+r*.52);
+  ctx.restore();
+}
+
+touchLayer.addEventListener("pointerdown",function(e){
+  const x=e.clientX,y=e.clientY;
+  for(let i=currentButtons.length-1;i>=0;i--){
+    const b=currentButtons[i],d=Math.hypot(x-b.x,y-b.y);
+    if(d<b.r){
+      activeZone=b.id;toast("Zone "+b.label+" activée");
+      if(navigator.vibrate)navigator.vibrate(45);
+      return;
+    }
+  }
+});
+
+function drawDebugCircle(c,color){
+  ctx.beginPath();ctx.arc(c.x,c.y,c.r||10,0,Math.PI*2);
+  ctx.strokeStyle=color;ctx.lineWidth=3;ctx.stroke();
+}
+function clamp(v,min,max){return Math.max(min,Math.min(max,v))}
+function toast(text){
+  toastEl.textContent=text;toastEl.classList.add("show");
+  clearTimeout(toastEl._timer);
+  toastEl._timer=setTimeout(()=>toastEl.classList.remove("show"),1800);
+}
+</script>
+
+</body>
+</html>
 
